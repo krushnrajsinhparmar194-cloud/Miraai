@@ -9,7 +9,6 @@ const initialClients = [
     phone: '+91 98765 43210',
     email: 'hello@shreefashion.com',
     address: 'Surat',
-    notes: 'Regular catalogue client',
   },
 ]
 
@@ -19,7 +18,6 @@ const initialStaff = [
     name: 'Ravi',
     role: 'Editor',
     phone: '+91 99999 11111',
-    notes: 'Handles catalogue delivery',
   },
 ]
 
@@ -35,7 +33,6 @@ const initialWorks = [
     status: 'In Progress',
     paymentStatus: 'Pending',
     priority: 'High',
-    notes: 'Need final review before delivery',
     attachments: ['reference-board.pdf'],
   },
 ]
@@ -50,7 +47,6 @@ const initialInvoices = [
     issueDate: '2026-04-16',
     dueDate: '2026-04-22',
     status: 'Pending',
-    notes: 'Advance pending',
   },
 ]
 
@@ -127,7 +123,6 @@ function App() {
           issueDate: payload.startDate,
           dueDate: payload.deadline,
           status: payload.paymentStatus || 'Pending',
-          notes: payload.invoiceNotes || '',
         },
         ...prev,
       ])
@@ -338,8 +333,6 @@ function App() {
                       <Detail label="Priority" value={work.priority || '-'} />
                     </div>
 
-                    {work.notes && <p className="notes-text">{work.notes}</p>}
-
                     {work.attachments?.length > 0 && (
                       <div className="attachment-wrap">
                         {work.attachments.map((file) => (
@@ -432,7 +425,6 @@ function ClientForm({ onSubmit }) {
     phone: '',
     email: '',
     address: '',
-    notes: '',
   })
 
   const handleChange = (event) => {
@@ -443,7 +435,7 @@ function ClientForm({ onSubmit }) {
     event.preventDefault()
     if (!form.name.trim()) return
     onSubmit(form)
-    setForm({ name: '', company: '', phone: '', email: '', address: '', notes: '' })
+    setForm({ name: '', company: '', phone: '', email: '', address: '' })
   }
 
   return (
@@ -453,14 +445,13 @@ function ClientForm({ onSubmit }) {
       <Input label="Phone" name="phone" value={form.phone} onChange={handleChange} />
       <Input label="Email" name="email" value={form.email} onChange={handleChange} />
       <Input label="Address" name="address" value={form.address} onChange={handleChange} className="full" />
-      <Textarea label="Notes" name="notes" value={form.notes} onChange={handleChange} className="full" />
       <button className="primary-button full">Save Client</button>
     </form>
   )
 }
 
 function StaffForm({ onSubmit }) {
-  const [form, setForm] = useState({ name: '', role: '', phone: '', notes: '' })
+  const [form, setForm] = useState({ name: '', role: '', phone: '' })
 
   const handleChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }))
@@ -470,7 +461,7 @@ function StaffForm({ onSubmit }) {
     event.preventDefault()
     if (!form.name.trim()) return
     onSubmit(form)
-    setForm({ name: '', role: '', phone: '', notes: '' })
+    setForm({ name: '', role: '', phone: '' })
   }
 
   return (
@@ -478,7 +469,6 @@ function StaffForm({ onSubmit }) {
       <Input label="Staff name" name="name" value={form.name} onChange={handleChange} required />
       <Input label="Role" name="role" value={form.role} onChange={handleChange} />
       <Input label="Phone" name="phone" value={form.phone} onChange={handleChange} />
-      <Textarea label="Notes" name="notes" value={form.notes} onChange={handleChange} className="full" />
       <button className="primary-button full">Save Staff</button>
     </form>
   )
@@ -497,8 +487,6 @@ function WorkForm({ clients, staff, onSubmit }) {
     paymentStatus: 'Pending',
     priority: 'Medium',
     invoiceAmount: '',
-    invoiceNotes: '',
-    notes: '',
   })
 
   const handleChange = (event) => {
@@ -528,8 +516,6 @@ function WorkForm({ clients, staff, onSubmit }) {
       paymentStatus: 'Pending',
       priority: 'Medium',
       invoiceAmount: '',
-      invoiceNotes: '',
-      notes: '',
     })
   }
 
@@ -557,8 +543,6 @@ function WorkForm({ clients, staff, onSubmit }) {
         { value: 'Paid', label: 'Paid' },
       ]} />
       <Input label="Invoice amount" name="invoiceAmount" value={form.invoiceAmount} onChange={handleChange} placeholder="e.g. 25000" />
-      <Textarea label="Invoice notes" name="invoiceNotes" value={form.invoiceNotes} onChange={handleChange} className="full" />
-      <Textarea label="Work notes" name="notes" value={form.notes} onChange={handleChange} className="full" />
 
       <div className="full attachment-box">
         <div>
@@ -592,7 +576,6 @@ function InvoiceForm({ clients, works, onSubmit }) {
     issueDate: today(),
     dueDate: '',
     status: 'Pending',
-    notes: '',
   })
 
   useEffect(() => {
@@ -619,7 +602,6 @@ function InvoiceForm({ clients, works, onSubmit }) {
       issueDate: today(),
       dueDate: '',
       status: 'Pending',
-      notes: '',
     })
   }
 
@@ -639,7 +621,6 @@ function InvoiceForm({ clients, works, onSubmit }) {
         { value: 'Part Paid', label: 'Part Paid' },
         { value: 'Paid', label: 'Paid' },
       ]} />
-      <Textarea label="Notes" name="notes" value={form.notes} onChange={handleChange} className="full" />
       <button className="primary-button full">Save Invoice</button>
     </form>
   )
