@@ -465,6 +465,9 @@ function App() {
     review: photos.filter((photo) => photo.quality.status === 'review').length,
     bad: photos.filter((photo) => photo.quality.status === 'bad').length,
   }), [photos])
+  const isSareeSet = job.garmentType === 'Saree' && job.productMode === 'saree-set'
+  const isSareeOnly = job.garmentType === 'Saree' && job.productMode === 'saree-only'
+  const isBlouseOnly = job.garmentType === 'Saree' && job.productMode === 'blouse-only'
   const resolvedDetails = useMemo(() => buildResolvedDetails(job, details, coverage), [job, details, coverage])
   const resolvedCreative = useMemo(() => buildResolvedCreative(job, creative), [job, creative])
   const preset = presetOptions.find((item) => item.id === resolvedCreative.presetId) || presetOptions[0]
@@ -888,9 +891,10 @@ function App() {
                       <strong>System reading</strong>
                       <div className="mockup-points">
                         <span>Main body: {coverage.find((item) => item.id === 'saree_full' || item.id === 'blouse_front' || item.id === 'main_view')?.done ? 'Detected' : 'Missing'}</span>
-                        <span>Blouse refs: {(coverage.find((item) => item.id === 'blouse_front')?.count || 0) + (coverage.find((item) => item.id === 'blouse_back')?.count || 0)}</span>
-                        <span>Pallu refs: {coverage.find((item) => item.id === 'pallu_detail')?.count || 0}</span>
-                        <span>Border refs: {coverage.find((item) => item.id === 'border_detail')?.count || 0}</span>
+                        {!isSareeOnly ? <span>Blouse refs: {(coverage.find((item) => item.id === 'blouse_front')?.count || 0) + (coverage.find((item) => item.id === 'blouse_back')?.count || 0)}</span> : null}
+                        {!isBlouseOnly ? <span>Pallu refs: {coverage.find((item) => item.id === 'pallu_detail')?.count || 0}</span> : null}
+                        {!isBlouseOnly ? <span>Border refs: {coverage.find((item) => item.id === 'border_detail')?.count || 0}</span> : null}
+                        {isBlouseOnly ? <span>Back blouse refs: {coverage.find((item) => item.id === 'blouse_back')?.count || 0}</span> : null}
                       </div>
                     </div>
                   </article>
@@ -943,8 +947,8 @@ function App() {
           <section className="page-card">
             <div className="page-head">
               <p className="eyebrow">{stepMeta.details.eyebrow}</p>
-              <h2>Fill product details</h2>
-              <p>These fields now follow the selected mode. Saree only ignores blouse styling, and blouse only ignores saree drape logic.</p>
+              <h2>{isBlouseOnly ? 'Fill blouse details' : isSareeOnly ? 'Fill saree details' : 'Fill product details'}</h2>
+              <p>{isBlouseOnly ? 'Only blouse-related detail fields are shown here.' : isSareeOnly ? 'Only saree-related detail fields are shown here.' : 'These fields now follow the selected mode.'}</p>
             </div>
 
             <div className="form-grid">
@@ -968,14 +972,18 @@ function App() {
                 <span>Fit / Silhouette</span>
                 <input value={details.silhouette} onChange={(event) => onDetailFieldChange('silhouette', event.target.value)} placeholder={resolvedDetails.silhouette} />
               </label>
-              <label className="field">
-                <span>Neckline / Collar</span>
-                <input value={details.neckline} onChange={(event) => onDetailFieldChange('neckline', event.target.value)} placeholder={resolvedDetails.neckline} />
-              </label>
-              <label className="field">
-                <span>Sleeves</span>
-                <input value={details.sleeves} onChange={(event) => onDetailFieldChange('sleeves', event.target.value)} placeholder={resolvedDetails.sleeves} />
-              </label>
+              {!isSareeOnly ? (
+                <label className="field">
+                  <span>Neckline / Collar</span>
+                  <input value={details.neckline} onChange={(event) => onDetailFieldChange('neckline', event.target.value)} placeholder={resolvedDetails.neckline} />
+                </label>
+              ) : null}
+              {!isSareeOnly ? (
+                <label className="field">
+                  <span>Sleeves</span>
+                  <input value={details.sleeves} onChange={(event) => onDetailFieldChange('sleeves', event.target.value)} placeholder={resolvedDetails.sleeves} />
+                </label>
+              ) : null}
               <label className="field">
                 <span>Embellishment</span>
                 <input value={details.embellishment} onChange={(event) => onDetailFieldChange('embellishment', event.target.value)} placeholder={resolvedDetails.embellishment} />
@@ -1068,7 +1076,7 @@ function App() {
             <div className="page-head">
               <p className="eyebrow">{stepMeta.review.eyebrow}</p>
               <h2>Review and start work</h2>
-              <p>The final prompt should only be trusted when the intake gate is clean. Missing required shots or bad images should stop output from being treated as final.</p>
+              <p>The final prompt should only be trusted when the intake gate is clean for this mode. Missing required shots or bad images should stop output from being treated as final.</p>
             </div>
 
             <div className="summary-grid">
