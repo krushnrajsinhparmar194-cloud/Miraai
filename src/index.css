@@ -316,13 +316,49 @@ textarea:focus {
 .prompt-stack,
 .summary-rows,
 .quick-grid,
-.mockup-points {
+.mockup-points,
+.upload-blueprint,
+.detection-grid {
   display: grid;
   gap: 14px;
 }
 
 .photo-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.upload-blueprint {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.blueprint-card {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(145, 103, 57, 0.12);
+  background: rgba(255, 249, 242, 0.82);
+  display: grid;
+  gap: 10px;
+}
+
+.blueprint-card-required {
+  border-color: rgba(178, 123, 55, 0.28);
+  background: linear-gradient(180deg, rgba(255, 243, 222, 0.94), rgba(255, 249, 240, 0.92));
+}
+
+.blueprint-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.blueprint-card p {
+  margin: 0;
+  color: #6d5d50;
+}
+
+.detection-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .photo-card {
@@ -341,6 +377,60 @@ textarea:focus {
 
 .photo-card-primary {
   border-color: rgba(186, 127, 58, 0.48);
+}
+
+.photo-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: #6e5e53;
+  font-size: 13px;
+}
+
+.quality-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quality-good {
+  background: rgba(30, 138, 77, 0.12);
+  color: #19653d;
+}
+
+.quality-review {
+  background: rgba(201, 130, 32, 0.14);
+  color: #8a5610;
+}
+
+.quality-bad {
+  background: rgba(166, 42, 42, 0.12);
+  color: #8c2b2b;
+}
+
+.photo-card-select {
+  gap: 6px;
+}
+
+.photo-card-issues {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #744f37;
+}
+
+.photo-card-issues-clean {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(29, 138, 77, 0.08);
+  color: #1f6a43;
+  font-size: 13px;
 }
 
 .photo-card-copy {
@@ -591,6 +681,11 @@ textarea:focus {
   font-weight: 700;
 }
 
+.status-tag-ready {
+  background: rgba(30, 138, 77, 0.12);
+  color: #19653d;
+}
+
 .metric-card {
   padding: 18px;
   display: grid;
@@ -638,6 +733,8 @@ textarea:focus {
   .wizard-stepbar,
   .landing-steps,
   .photo-grid,
+  .upload-blueprint,
+  .detection-grid,
   .preset-grid,
   .summary-grid,
   .quick-grid,
