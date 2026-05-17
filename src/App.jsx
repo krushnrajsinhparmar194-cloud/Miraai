@@ -108,6 +108,14 @@ const initialOutputFeed = [
   },
 ]
 
+const workflowSteps = [
+  { id: 'upload', label: 'Upload', panelId: 'stage-upload' },
+  { id: 'extract', label: 'Extract', panelId: 'stage-extract' },
+  { id: 'creative', label: 'Edit Prompt', panelId: 'stage-creative' },
+  { id: 'images', label: 'Generate Image', panelId: 'stage-prompts' },
+  { id: 'video', label: 'Generate Video', panelId: 'stage-output' },
+]
+
 function buildImagePrompt(attributes, controls, preset) {
   return [
     `Create a highly realistic fashion image of a ${attributes.category} made from ${attributes.fabric}.`,
@@ -141,6 +149,7 @@ function App() {
   const [selectedPresetId, setSelectedPresetId] = useState('campaign')
   const [sourceImage, setSourceImage] = useState(null)
   const [outputFeed, setOutputFeed] = useState(initialOutputFeed)
+  const [activeStage, setActiveStage] = useState('upload')
 
   const selectedPreset = shotPresets.find((preset) => preset.id === selectedPresetId) || shotPresets[0]
   const confidenceScore = estimateConfidence(attributes)
@@ -164,6 +173,24 @@ function App() {
     }
   }, [confidenceScore, outputFeed])
 
+  const stageStatus = useMemo(() => {
+    const filledAttributeCount = Object.values(attributes).filter((value) => String(value || '').trim()).length
+    const hasCreativeReady = Boolean(creative.modelDirection && creative.background && creative.pose)
+    const hasImageQueue = outputFeed.some((item) => item.kind === 'image')
+    const hasVideoQueue = outputFeed.some((item) => item.kind === 'video')
+
+    return {
+      upload: Boolean(sourceImage),
+      extract: filledAttributeCount >= 6,
+      creative: hasCreativeReady,
+      images: hasImageQueue,
+      video: hasVideoQueue,
+    }
+  }, [attributes, creative, outputFeed, sourceImage])
+
+  const activeStageIndex = workflowSteps.findIndex((step) => step.id === activeStage)
+  const nextStage = activeStageIndex >= 0 ? workflowSteps[activeStageIndex + 1] || null : workflowSteps[0]
+
   const onUploadSourceImage = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -174,6 +201,7 @@ function App() {
       sizeLabel: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
       previewUrl,
     })
+    setActiveStage('extract')
   }
 
   const updateAttribute = (field, value) => {
@@ -207,6 +235,22 @@ function App() {
       },
       ...prev,
     ])
+
+    if (kind === 'image') setActiveStage('images')
+    if (kind === 'video') setActiveStage('video')
+  }
+
+  const goToStage = (stageId) => {
+    setActiveStage(stageId)
+    const step = workflowSteps.find((item) => item.id === stageId)
+    if (!step) return
+    globalThis.document?.getElementById(step.panelId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const continueFlow = (stageId) => {
+    const currentIndex = workflowSteps.findIndex((step) => step.id === stageId)
+    const target = workflowSteps[currentIndex + 1] || workflowSteps[currentIndex]
+    if (target) goToStage(target.id)
   }
 
   return (
@@ -223,11 +267,17 @@ function App() {
         <div className="sidebar-section">
           <span className="sidebar-section-label">Workflow</span>
           <div className="sidebar-chip-list">
-            <span className="sidebar-chip active">1. Upload</span>
-            <span className="sidebar-chip active">2. Extract</span>
-            <span className="sidebar-chip active">3. Edit prompt</span>
-            <span className="sidebar-chip">4. Generate image</span>
-            <span className="sidebar-chip">5. Generate video</span>
+            {workflowSteps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                className={`sidebar-chip ${activeStage === step.id ? 'active' : ''}`}
+                onClick={() => goToStage(step.id)}
+              >
+                <span>{index + 1}. {step.label}</span>
+                <small>{stageStatus[step.id] ? 'Ready' : 'Open'}</small>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -253,10 +303,33 @@ function App() {
             <MetricCard label="Pending jobs" value={pipelineMetrics.pendingAssets} helper="Waiting for model execution" />
             <MetricCard label="Planned variants" value={pipelineMetrics.plannedAssets} helper="Pose and video ideas queued" />
           </div>
+
+          <div className="hero-action-row">
+            <button type="button" className="primary-button" onClick={() => goToStage(activeStage)}>
+              Open current step
+            </button>
+            {nextStage ? (
+              <button type="button" className="secondary-button" onClick={() => goToStage(nextStage.id)}>
+                Continue to {nextStage.label}
+              </button>
+            ) : null}
+          </div>
         </section>
 
         <section className="textile-grid textile-grid-source">
-          <Panel title="1. Source Cloth Input" description="Upload the original garment or textile photo that all generation should respect.">
+          <Panel
+            id="stage-upload"
+            title="1. Source Cloth Input"
+            description="Upload the original garment or textile photo that all generation should respect."
+            isActive={activeStage === 'upload'}
+            footer={(
+              <PanelFooter
+                status={stageStatus.upload ? 'Source image selected' : 'Waiting for source image'}
+                actionLabel="Continue to extract"
+                onAction={() => continueFlow('upload')}
+              />
+            )}
+          >
             <div className="source-uploader">
               <label className="upload-dropzone">
                 <input type="file" accept="image/*" onChange={onUploadSourceImage} />
@@ -283,7 +356,19 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="2. Extracted Garment Truth" description="These fields should stay editable because AI vision will never be fully reliable by itself.">
+          <Panel
+            id="stage-extract"
+            title="2. Extracted Garment Truth"
+            description="These fields should stay editable because AI vision will never be fully reliable by itself."
+            isActive={activeStage === 'extract'}
+            footer={(
+              <PanelFooter
+                status={stageStatus.extract ? 'Garment truth is ready to drive prompts' : 'Fill or correct the garment details'}
+                actionLabel="Continue to prompt editing"
+                onAction={() => continueFlow('extract')}
+              />
+            )}
+          >
             <div className="form-grid">
               {attributeFieldDefs.map((field) => (
                 <label key={field.key} className={`field ${field.key === 'pattern' || field.key === 'embellishment' ? 'full' : ''}`}>
@@ -300,7 +385,12 @@ function App() {
         </section>
 
         <section className="textile-grid textile-grid-creative">
-          <Panel title="3. Shot Presets" description="Keep preset logic reusable so developers can later bind each preset to specific prompts and model settings.">
+          <Panel
+            id="stage-creative"
+            title="3. Shot Presets"
+            description="Keep preset logic reusable so developers can later bind each preset to specific prompts and model settings."
+            isActive={activeStage === 'creative'}
+          >
             <div className="preset-grid">
               {shotPresets.map((preset) => (
                 <button
@@ -319,7 +409,18 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="4. Creative Controls" description="This is where the operator changes pose, model direction, scene, lighting and motion without touching base garment truth.">
+          <Panel
+            title="4. Creative Controls"
+            description="This is where the operator changes pose, model direction, scene, lighting and motion without touching base garment truth."
+            isActive={activeStage === 'creative'}
+            footer={(
+              <PanelFooter
+                status={stageStatus.creative ? 'Creative setup locked for prompt generation' : 'Choose pose, background, and direction'}
+                actionLabel="Continue to prompt output"
+                onAction={() => continueFlow('creative')}
+              />
+            )}
+          >
             <div className="form-grid">
               <label className="field full">
                 <span>Target Use Case</span>
@@ -364,7 +465,19 @@ function App() {
         </section>
 
         <section className="textile-grid textile-grid-prompts">
-          <Panel title="5. Auto Prompt Builder" description="This is the developer handoff format: structured inputs converted into image, video, and negative prompts.">
+          <Panel
+            id="stage-prompts"
+            title="5. Auto Prompt Builder"
+            description="This is the developer handoff format: structured inputs converted into image, video, and negative prompts."
+            isActive={activeStage === 'images'}
+            footer={(
+              <PanelFooter
+                status="You can now queue still generation from this prompt state"
+                actionLabel="Continue to output queue"
+                onAction={() => continueFlow('images')}
+              />
+            )}
+          >
             <div className="prompt-stack">
               <PromptCard label="Image Prompt" body={prompts.image} />
               <PromptCard label="Video Prompt" body={prompts.video} />
@@ -372,7 +485,19 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="6. Output Queue" description="These are staged jobs. Next step is wiring each action to actual backend generation APIs.">
+          <Panel
+            id="stage-output"
+            title="6. Output Queue"
+            description="These are staged jobs. Next step is wiring each action to actual backend generation APIs."
+            isActive={activeStage === 'video'}
+            footer={(
+              <PanelFooter
+                status={stageStatus.video ? 'Video flow has started from this point' : 'Queue image or video work to start execution flow'}
+                actionLabel="Jump back to upload"
+                onAction={() => goToStage('upload')}
+              />
+            )}
+          >
             <div className="queue-action-row">
               <button type="button" className="primary-button" onClick={() => queueOutput('image')}>Queue image batch</button>
               <button type="button" className="secondary-button" onClick={() => queueOutput('video')}>Queue video batch</button>
@@ -398,9 +523,9 @@ function App() {
   )
 }
 
-function Panel({ title, description, children }) {
+function Panel({ id, title, description, children, footer, isActive = false }) {
   return (
-    <section className="textile-panel">
+    <section id={id} className={`textile-panel ${isActive ? 'panel-active' : ''}`}>
       <div className="panel-head panel-head-stack">
         <div>
           <h3>{title}</h3>
@@ -408,6 +533,7 @@ function Panel({ title, description, children }) {
         </div>
       </div>
       {children}
+      {footer}
     </section>
   )
 }
@@ -428,6 +554,17 @@ function PromptCard({ label, body }) {
       <span>{label}</span>
       <p>{body}</p>
     </article>
+  )
+}
+
+function PanelFooter({ status, actionLabel, onAction }) {
+  return (
+    <div className="panel-footer">
+      <span>{status}</span>
+      <button type="button" className="secondary-button" onClick={onAction}>
+        {actionLabel}
+      </button>
+    </div>
   )
 }
 

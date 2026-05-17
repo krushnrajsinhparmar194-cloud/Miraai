@@ -122,11 +122,19 @@ img {
   border: 1px solid rgba(255, 244, 230, 0.12);
   color: #f8f3ec;
   font-size: 13px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
 }
 
 .sidebar-chip.active {
   background: linear-gradient(135deg, rgba(214, 173, 99, 0.24), rgba(255, 215, 157, 0.14));
   border-color: rgba(230, 197, 136, 0.32);
+}
+
+.sidebar-chip small {
+  color: rgba(255, 241, 220, 0.66);
+  font-size: 11px;
 }
 
 .textile-note {
@@ -192,6 +200,12 @@ img {
   gap: 16px;
 }
 
+.hero-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .metric-card {
   padding: 18px 20px;
   display: grid;
@@ -232,6 +246,12 @@ img {
   padding: 22px;
   display: grid;
   gap: 18px;
+  scroll-margin-top: 24px;
+}
+
+.panel-active {
+  border-color: rgba(182, 120, 52, 0.42);
+  box-shadow: 0 26px 70px rgba(86, 54, 30, 0.12);
 }
 
 .panel-head-stack {
@@ -477,6 +497,21 @@ textarea:focus {
 .queue-card p {
   margin: 0;
   color: #6f625a;
+}
+
+.panel-footer {
+  padding-top: 12px;
+  border-top: 1px solid rgba(145, 103, 57, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.panel-footer span {
+  color: #7a6758;
+  font-size: 14px;
 }
 
 .queue-kind-label {
