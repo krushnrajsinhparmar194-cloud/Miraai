@@ -150,6 +150,7 @@ function App() {
   const [sourceImage, setSourceImage] = useState(null)
   const [outputFeed, setOutputFeed] = useState(initialOutputFeed)
   const [activeStage, setActiveStage] = useState('upload')
+  const [showWorkspace, setShowWorkspace] = useState(false)
 
   const selectedPreset = shotPresets.find((preset) => preset.id === selectedPresetId) || shotPresets[0]
   const confidenceScore = estimateConfidence(attributes)
@@ -254,6 +255,8 @@ function App() {
   }
 
   const startWork = () => {
+    setShowWorkspace(true)
+
     if (!sourceImage) {
       goToStage('upload')
       return
@@ -275,6 +278,39 @@ function App() {
     }
 
     goToStage('video')
+  }
+
+  if (!showWorkspace) {
+    return (
+      <div className="landing-shell">
+        <section className="landing-card">
+          <p className="eyebrow">Miraai Textile AI</p>
+          <h1 className="landing-title">Simple textile workflow</h1>
+          <p className="landing-copy">
+            Cloth photo upload કરો, details check કરો, પછી image અથવા video generation શરૂ કરો.
+          </p>
+
+          <div className="landing-steps">
+            <article className="landing-step">
+              <strong>Upload Photo</strong>
+              <span>Cloth image add કરો</span>
+            </article>
+            <article className="landing-step">
+              <strong>Check Details</strong>
+              <span>Garment info verify કરો</span>
+            </article>
+            <article className="landing-step">
+              <strong>Generate Output</strong>
+              <span>Prompt, image, video flow ચલાવો</span>
+            </article>
+          </div>
+
+          <button type="button" className="primary-button landing-start-button" onClick={startWork}>
+            Start Work
+          </button>
+        </section>
+      </div>
+    )
   }
 
   return (
@@ -308,6 +344,9 @@ function App() {
         <div className="sidebar-note textile-note">
           <strong>What is live now</strong>
           <span>Upload preview, garment attribute editor, prompt composer, shot presets, pose/video controls, and job queue planning.</span>
+          <button type="button" className="secondary-button" onClick={() => setShowWorkspace(false)}>
+            Back To Home
+          </button>
           <button type="button" className="primary-button start-work-button" onClick={startWork}>
             Start Work
           </button>

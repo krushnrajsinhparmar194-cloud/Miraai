@@ -40,6 +40,67 @@ img {
   min-height: 100vh;
 }
 
+.landing-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.landing-card {
+  width: min(720px, 100%);
+  padding: 36px;
+  border-radius: 32px;
+  border: 1px solid rgba(122, 77, 33, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(255, 247, 237, 0.94)),
+    #fffaf4;
+  box-shadow: 0 24px 70px rgba(86, 54, 30, 0.08);
+  display: grid;
+  gap: 22px;
+}
+
+.landing-title {
+  margin: 0;
+  font-size: clamp(34px, 6vw, 56px);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+  color: #231815;
+}
+
+.landing-copy {
+  margin: 0;
+  color: #6f6259;
+  font-size: 18px;
+}
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.landing-step {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 248, 239, 0.88);
+  border: 1px solid rgba(145, 103, 57, 0.12);
+  display: grid;
+  gap: 8px;
+}
+
+.landing-step strong {
+  color: #2c1d17;
+}
+
+.landing-step span {
+  color: #7a6758;
+}
+
+.landing-start-button {
+  min-height: 52px;
+}
+
 .textile-app-shell {
   min-height: 100vh;
   display: grid;
@@ -568,6 +629,14 @@ textarea:focus {
 }
 
 @media (max-width: 820px) {
+  .landing-card {
+    padding: 24px;
+  }
+
+  .landing-steps {
+    grid-template-columns: 1fr;
+  }
+
   .textile-content-area {
     padding: 18px;
   }
