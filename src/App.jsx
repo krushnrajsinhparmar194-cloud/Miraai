@@ -253,6 +253,30 @@ function App() {
     if (target) goToStage(target.id)
   }
 
+  const startWork = () => {
+    if (!sourceImage) {
+      goToStage('upload')
+      return
+    }
+
+    if (!stageStatus.extract) {
+      goToStage('extract')
+      return
+    }
+
+    if (!stageStatus.creative) {
+      goToStage('creative')
+      return
+    }
+
+    if (!stageStatus.images) {
+      goToStage('images')
+      return
+    }
+
+    goToStage('video')
+  }
+
   return (
     <div className="textile-app-shell">
       <aside className="textile-sidebar">
@@ -284,6 +308,9 @@ function App() {
         <div className="sidebar-note textile-note">
           <strong>What is live now</strong>
           <span>Upload preview, garment attribute editor, prompt composer, shot presets, pose/video controls, and job queue planning.</span>
+          <button type="button" className="primary-button start-work-button" onClick={startWork}>
+            Start Work
+          </button>
         </div>
       </aside>
 
@@ -305,6 +332,9 @@ function App() {
           </div>
 
           <div className="hero-action-row">
+            <button type="button" className="primary-button" onClick={startWork}>
+              Start Work
+            </button>
             <button type="button" className="primary-button" onClick={() => goToStage(activeStage)}>
               Open current step
             </button>

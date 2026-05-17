@@ -148,6 +148,11 @@ img {
   color: #fff7ee;
 }
 
+.start-work-button {
+  width: 100%;
+  justify-content: center;
+}
+
 .textile-content-area {
   padding: 28px;
   display: grid;
