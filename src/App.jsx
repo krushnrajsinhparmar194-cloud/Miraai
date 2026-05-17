@@ -18,7 +18,11 @@ const workTypeOptions = [
   { value: 'video', label: 'Video Generation' },
   { value: 'image-video', label: 'Image + Video' },
 ]
-
+const sareeModeOptions = [
+  { value: 'saree-set', label: 'Saree + Blouse Set' },
+  { value: 'saree-only', label: 'Saree Only' },
+  { value: 'blouse-only', label: 'Blouse Only' },
+]
 const outputIntentOptions = ['Catalog', 'Creative Campaign', 'Marketplace Listing', 'Social Reel']
 const poseOptions = ['Front Straight', 'Walking Three-Quarter', 'Side Detail Pose', 'Close-Up Detail', 'Seated Editorial']
 const backgroundOptions = ['White Studio', 'Warm Beige Studio', 'Festive Set', 'Outdoor Neutral', 'Soft Gradient Backdrop']
@@ -29,49 +33,28 @@ const presetOptions = [
   { id: 'social', label: 'Social Creative', description: 'Sharper styling and stronger ad-friendly visual direction.' },
 ]
 
-const sareeShotPlan = [
-  {
-    id: 'saree_full',
-    label: 'Full Saree View',
-    required: true,
-    help: 'Open saree or full drape view where full body, border, and pallu proportions are visible.',
-  },
-  {
-    id: 'pallu_detail',
-    label: 'Pallu Detail',
-    required: true,
-    help: 'Close shot of pallu design, motifs, tassels, zari layout, or contrast area.',
-  },
-  {
-    id: 'border_detail',
-    label: 'Border Detail',
-    required: true,
-    help: 'Close shot of border width, lace, weaving, edging, or side detailing.',
-  },
-  {
-    id: 'blouse_front',
-    label: 'Blouse Front',
-    required: true,
-    help: 'Front blouse reference with neckline, sleeves, color match, and work visibility.',
-  },
-  {
-    id: 'blouse_back',
-    label: 'Blouse Back / Sleeve',
-    required: false,
-    help: 'Back neck, dori, sleeve, cuff, or blouse finishing details.',
-  },
-  {
-    id: 'fabric_closeup',
-    label: 'Fabric Close-Up',
-    required: true,
-    help: 'Texture close-up for fabric feel, weave, embroidery, print density, or shine.',
-  },
-  {
-    id: 'fall_finish',
-    label: 'Fall / Finishing',
-    required: false,
-    help: 'Optional finishing details like fall, edging, stitch line, tassels, or backside finish.',
-  },
+const sareeSetShotPlan = [
+  { id: 'saree_full', label: 'Full Saree View', required: true, help: 'Open saree or full drape view where body, border, and pallu proportions are visible.' },
+  { id: 'pallu_detail', label: 'Pallu Detail', required: true, help: 'Close shot of pallu design, motifs, tassels, zari layout, or contrast area.' },
+  { id: 'border_detail', label: 'Border Detail', required: true, help: 'Close shot of border width, lace, weaving, edging, or side detailing.' },
+  { id: 'blouse_front', label: 'Blouse Front', required: true, help: 'Front blouse reference with neckline, sleeves, color match, and work visibility.' },
+  { id: 'blouse_back', label: 'Blouse Back / Sleeve', required: false, help: 'Back neck, dori, sleeve, cuff, or blouse finishing details.' },
+  { id: 'fabric_closeup', label: 'Fabric Close-Up', required: true, help: 'Texture close-up for fabric feel, weave, embroidery, print density, or shine.' },
+  { id: 'fall_finish', label: 'Fall / Finishing', required: false, help: 'Optional finishing details like fall, edging, stitch line, tassels, or backside finish.' },
+]
+
+const sareeOnlyShotPlan = [
+  { id: 'saree_full', label: 'Full Saree View', required: true, help: 'Open saree or full drape view where body, border, and pallu proportions are visible.' },
+  { id: 'pallu_detail', label: 'Pallu Detail', required: true, help: 'Close shot of pallu design, motifs, tassels, zari layout, or contrast area.' },
+  { id: 'border_detail', label: 'Border Detail', required: true, help: 'Close shot of border width, lace, weaving, edging, or side detailing.' },
+  { id: 'fabric_closeup', label: 'Fabric Close-Up', required: true, help: 'Texture close-up for fabric feel, weave, embroidery, print density, or shine.' },
+  { id: 'fall_finish', label: 'Fall / Finishing', required: false, help: 'Optional finishing details like fall, edging, stitch line, tassels, or backside finish.' },
+]
+
+const blouseOnlyShotPlan = [
+  { id: 'blouse_front', label: 'Blouse Front', required: true, help: 'Front blouse reference with neckline, sleeves, cup shape, and work visibility.' },
+  { id: 'blouse_back', label: 'Blouse Back / Sleeve', required: true, help: 'Back neck, dori, sleeve, cuff, or blouse finishing details.' },
+  { id: 'fabric_closeup', label: 'Blouse Fabric Close-Up', required: true, help: 'Texture close-up for blouse fabric, embroidery, lining, padding, or finishing.' },
 ]
 
 const genericShotPlan = [
@@ -173,13 +156,14 @@ const creativeDefaultsByIntent = {
 const productionNotes = [
   'Production version should run a vision classifier on every uploaded image and predict labels like saree body, blouse front, pallu, or border with confidence.',
   'Low-confidence predictions should ask the user to confirm or change the shot type before prompt generation starts.',
-  'Prompt generation should only become ready when required saree shots exist and low-quality images are replaced or accepted deliberately.',
+  'Prompt generation should only become ready when required shots for the selected mode exist and weak images are replaced or accepted deliberately.',
 ]
 
 const initialJob = {
   jobName: '',
   workType: 'image-video',
   garmentType: 'Saree',
+  productMode: 'saree-set',
   audience: 'Women',
   outputIntent: 'Catalog',
   brandName: '',
@@ -214,10 +198,7 @@ function createId() {
 }
 
 function getHashScreen() {
-  const hash = String(globalThis.location && globalThis.location.hash ? globalThis.location.hash : '')
-    .replace(/^#/, '')
-    .trim()
-
+  const hash = String(globalThis.location && globalThis.location.hash ? globalThis.location.hash : '').replace(/^#/, '').trim()
   if (hash === 'home') return 'home'
   if (stepOrder.includes(hash)) return hash
   return 'home'
@@ -231,19 +212,36 @@ function withFallback(value, fallback) {
   return String(value || '').trim() || fallback
 }
 
-function getShotPlan(garmentType) {
-  if (garmentType === 'Saree') return sareeShotPlan
+function getProductModeLabel(job) {
+  if (job.garmentType !== 'Saree') return job.garmentType
+  return sareeModeOptions.find((item) => item.value === job.productMode)?.label || 'Saree + Blouse Set'
+}
+
+function getShotPlan(job) {
+  if (job.garmentType === 'Saree') {
+    if (job.productMode === 'saree-only') return sareeOnlyShotPlan
+    if (job.productMode === 'blouse-only') return blouseOnlyShotPlan
+    return sareeSetShotPlan
+  }
   return genericShotPlan
 }
 
-function getShotTypeLabel(garmentType, shotType) {
-  const shot = getShotPlan(garmentType).find((item) => item.id === shotType)
+function getShotTypeLabel(job, shotType) {
+  const shot = getShotPlan(job).find((item) => item.id === shotType)
   return shot ? shot.label : 'Needs Review'
 }
 
-function suggestShotType(name, garmentType) {
+function suggestShotType(name, job) {
   const source = String(name || '').toLowerCase()
-  if (garmentType === 'Saree') {
+
+  if (job.garmentType === 'Saree') {
+    if (job.productMode === 'blouse-only') {
+      if (source.includes('back') || source.includes('sleeve') || source.includes('neck')) return 'blouse_back'
+      if (source.includes('blouse') || source.includes('front')) return 'blouse_front'
+      if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return 'fabric_closeup'
+      return 'unassigned'
+    }
+
     if (source.includes('blouse') && (source.includes('back') || source.includes('sleeve') || source.includes('neck'))) return 'blouse_back'
     if (source.includes('blouse')) return 'blouse_front'
     if (source.includes('pallu') || source.includes('pallav')) return 'pallu_detail'
@@ -260,37 +258,30 @@ function suggestShotType(name, garmentType) {
   return 'unassigned'
 }
 
-function evaluatePhotoQuality(photo, garmentType) {
+function evaluatePhotoQuality(photo, job) {
   const issues = []
   const width = photo.width || 0
   const height = photo.height || 0
   const sizeBytes = photo.fileSizeBytes || 0
 
-  if (photo.shotType === 'unassigned') {
-    issues.push('Confirm this image type before prompt generation.')
-  }
-
-  if (width < 1200 || height < 1200) {
-    issues.push('Resolution is low. Upload a sharper image if possible.')
-  }
-
-  if (sizeBytes < 180 * 1024) {
-    issues.push('Image may be too compressed.')
-  }
-
-  if (garmentType === 'Saree' && photo.shotType === 'saree_full' && Math.max(width, height) < 1800) {
+  if (photo.shotType === 'unassigned') issues.push('Confirm this image type before prompt generation.')
+  if (width < 1200 || height < 1200) issues.push('Resolution is low. Upload a sharper image if possible.')
+  if (sizeBytes < 180 * 1024) issues.push('Image may be too compressed.')
+  if (job.garmentType === 'Saree' && photo.shotType === 'saree_full' && Math.max(width, height) < 1800) {
     issues.push('Use a higher-resolution full saree image for better drape accuracy.')
+  }
+  if (job.garmentType === 'Saree' && job.productMode === 'blouse-only' && photo.shotType === 'blouse_front' && Math.max(width, height) < 1500) {
+    issues.push('Use a sharper blouse front image for neckline and sleeve accuracy.')
   }
 
   const status = issues.length === 0 ? 'good' : issues.length === 1 ? 'review' : 'bad'
   const label = status === 'good' ? 'Good Shot' : status === 'review' ? 'Review' : 'Replace'
   const score = Math.max(48, 100 - issues.length * 18)
-
   return { status, label, score, issues }
 }
 
-function getCoverageSummary(photos, garmentType) {
-  const plan = getShotPlan(garmentType)
+function getCoverageSummary(photos, job) {
+  const plan = getShotPlan(job)
   return plan.map((item) => {
     const count = photos.filter((photo) => photo.shotType === item.id).length
     return { ...item, count, done: count > 0 }
@@ -298,7 +289,7 @@ function getCoverageSummary(photos, garmentType) {
 }
 
 function buildSuggestedJobName(job) {
-  return withFallback(job.jobName, job.garmentType + ' ' + job.outputIntent + ' prompt set')
+  return withFallback(job.jobName, getProductModeLabel(job) + ' ' + job.outputIntent + ' prompt set')
 }
 
 function buildResolvedDetails(job, details, coverage) {
@@ -306,19 +297,21 @@ function buildResolvedDetails(job, details, coverage) {
   const hasBlouse = coverage.some((item) => item.id === 'blouse_front' && item.done)
   const hasPallu = coverage.some((item) => item.id === 'pallu_detail' && item.done)
   const hasBorder = coverage.some((item) => item.id === 'border_detail' && item.done)
+  const isBlouseOnly = job.garmentType === 'Saree' && job.productMode === 'blouse-only'
+  const isSareeOnly = job.garmentType === 'Saree' && job.productMode === 'saree-only'
 
   return {
     title: withFallback(details.title, defaults.title),
     fabric: withFallback(details.fabric, defaults.fabric),
     palette: withFallback(details.palette, defaults.palette),
     pattern: withFallback(details.pattern, defaults.pattern),
-    silhouette: withFallback(details.silhouette, defaults.silhouette),
-    neckline: withFallback(details.neckline, hasBlouse ? defaults.neckline : 'No blouse image confirmed yet. Keep blouse neckline simple unless user updates it.'),
-    sleeves: withFallback(details.sleeves, hasBlouse ? defaults.sleeves : 'No blouse sleeve reference confirmed yet. Keep sleeves commercially simple unless user updates them.'),
+    silhouette: withFallback(details.silhouette, isBlouseOnly ? 'Fitted blouse shape with realistic construction and clean visibility.' : defaults.silhouette),
+    neckline: withFallback(details.neckline, isSareeOnly ? 'Blouse is not part of this prompt. Ignore neckline styling.' : hasBlouse ? defaults.neckline : 'No blouse image confirmed yet. Keep blouse neckline simple unless user updates it.'),
+    sleeves: withFallback(details.sleeves, isSareeOnly ? 'Blouse is not part of this prompt. Ignore sleeve styling.' : hasBlouse ? defaults.sleeves : 'No blouse sleeve reference confirmed yet. Keep sleeves commercially simple unless user updates them.'),
     embellishment: withFallback(details.embellishment, defaults.embellishment),
     notes: withFallback(
       details.notes,
-      defaults.notes +
+      (isBlouseOnly ? 'Focus only on blouse accuracy. Do not invent saree drape or pallu.' : defaults.notes) +
         (hasPallu ? ' Pallu reference is available.' : ' Pallu reference is missing.') +
         (hasBorder ? ' Border detail reference is available.' : ' Border detail reference is missing.')
     ),
@@ -339,25 +332,31 @@ function buildResolvedCreative(job, creative) {
   }
 }
 
-function buildReferenceLine(photos, garmentType) {
-  const summary = getCoverageSummary(photos, garmentType)
+function buildReferenceLine(photos, job) {
+  const summary = getCoverageSummary(photos, job)
     .filter((item) => item.done)
     .map((item) => item.label + ': ' + item.count)
     .join(', ')
-
   return summary || 'No confirmed reference slots yet.'
 }
 
 function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
+  const targetLabel = getProductModeLabel(job)
+  const truthLine = job.productMode === 'blouse-only'
+    ? 'Use the uploaded primary blouse photo "' + primaryPhotoName + '" as the truth source. Keep blouse identity exact across neckline, sleeves, back shape, embroidery, and fit. Do not redesign the blouse.'
+    : job.productMode === 'saree-only'
+      ? 'Use the uploaded primary saree photo "' + primaryPhotoName + '" as the truth source. Keep saree body, pallu, border, embroidery, and drape exact. Do not add blouse design work.'
+      : 'Use the uploaded primary cloth photo "' + primaryPhotoName + '" as the truth source. Keep textile identity exact across saree body, blouse, pallu, border, embroidery, and drape. Do not redesign the garment.'
+
   return [
     'Goal:',
-    'Create a highly realistic ' + job.garmentType.toLowerCase() + ' mockup for ' + job.audience.toLowerCase() + ' wear.',
+    'Create a highly realistic ' + targetLabel.toLowerCase() + ' mockup for ' + job.audience.toLowerCase() + ' wear.',
     '',
     'Reference Image Rule:',
-    'Use the uploaded primary cloth photo "' + primaryPhotoName + '" as the truth source. Keep textile identity exact across saree body, blouse, pallu, border, embroidery, and drape. Do not redesign the garment.',
+    truthLine,
     '',
     'Reference Coverage:',
-    buildReferenceLine(photos, job.garmentType),
+    buildReferenceLine(photos, job),
     '',
     'Output Direction:',
     'Intent: ' + job.outputIntent + '. Work type: ' + job.workType + '. Preset: ' + presetLabel + '.',
@@ -369,7 +368,9 @@ function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPh
     'Model direction: ' + creative.modelDirection + '. Pose: ' + creative.pose + '. Background: ' + creative.background + '. Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
     '',
     'Quality Guardrails:',
-    'Keep the textile fully readable. Avoid warped borders, wrong print density, extra decorations, wrong blouse matching, anatomy distortion, and color shifts.',
+    job.productMode === 'blouse-only'
+      ? 'Keep blouse shape, neckline, sleeves, and embellishment accurate. Avoid anatomy distortion, wrong fit, wrong neckline, and extra decorations.'
+      : 'Keep the textile fully readable. Avoid warped borders, wrong print density, extra decorations, wrong blouse matching, anatomy distortion, and color shifts.',
     '',
     'Notes:',
     details.notes,
@@ -377,31 +378,40 @@ function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPh
 }
 
 function buildGoogleFlowPrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
+  const targetLabel = getProductModeLabel(job)
+  const identityLine = job.productMode === 'blouse-only'
+    ? 'Preserve exact blouse identity, neckline shape, sleeve detailing, back pattern, embroidery, and fabric texture from the references.'
+    : job.productMode === 'saree-only'
+      ? 'Preserve exact saree identity, saree body, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
+      : 'Preserve exact textile identity, saree body, blouse color match, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
+
   return [
     'Use the uploaded cloth image "' + primaryPhotoName + '" as the main reference.',
-    'Generate one premium ' + job.garmentType.toLowerCase() + ' fashion mockup for ' + job.audience.toLowerCase() + ' wear.',
-    'Preserve exact textile identity, saree body, blouse color match, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.',
-    'Reference coverage: ' + buildReferenceLine(photos, job.garmentType) + '.',
+    'Generate one premium ' + targetLabel.toLowerCase() + ' fashion mockup for ' + job.audience.toLowerCase() + ' wear.',
+    identityLine,
+    'Reference coverage: ' + buildReferenceLine(photos, job) + '.',
     'Intent: ' + job.outputIntent + '. Preset style: ' + presetLabel + '.',
     'Fabric: ' + details.fabric + '. Palette: ' + details.palette + '. Pattern: ' + details.pattern + '.',
     'Silhouette: ' + details.silhouette + '. Neckline: ' + details.neckline + '. Sleeves: ' + details.sleeves + '.',
     'Embellishment: ' + details.embellishment + '.',
     'Model direction: ' + creative.modelDirection + '. Pose: ' + creative.pose + '. Background: ' + creative.background + '.',
     'Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
-    'Do not invent new motifs, borders, accessories, blouse patterns, or color changes. Keep the garment production-accurate and commercially usable.',
+    job.productMode === 'blouse-only'
+      ? 'Do not invent new blouse cuts, motifs, lace, sleeve length, or neckline changes. Keep the blouse production-accurate and commercially usable.'
+      : 'Do not invent new motifs, borders, accessories, blouse patterns, or color changes. Keep the garment production-accurate and commercially usable.',
   ].join('\n')
 }
 
 function buildVideoPrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
   return [
     'Use the uploaded cloth image "' + primaryPhotoName + '" as the primary garment reference.',
-    'Create a short product video for a ' + job.garmentType.toLowerCase() + ' for ' + job.audience.toLowerCase() + ' wear.',
-    'Intent: ' + job.outputIntent + '. Preset: ' + presetLabel + '. Keep saree body, blouse, pallu, border, and fabric truth accurate throughout the motion.',
-    'Reference coverage: ' + buildReferenceLine(photos, job.garmentType) + '.',
+    'Create a short product video for a ' + getProductModeLabel(job).toLowerCase() + ' for ' + job.audience.toLowerCase() + ' wear.',
+    'Intent: ' + job.outputIntent + '. Preset: ' + presetLabel + '. Keep product truth accurate throughout the motion.',
+    'Reference coverage: ' + buildReferenceLine(photos, job) + '.',
     'Retain fabric, palette, pattern, and embellishment exactly: ' + details.fabric + '; ' + details.palette + '; ' + details.pattern + '; ' + details.embellishment + '.',
     'Base pose: ' + creative.pose + '. Motion: ' + creative.videoMotion + '. Background: ' + creative.background + '.',
     'Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
-    'Avoid unrealistic cloth physics, sudden design changes, and loss of blouse or border detail.',
+    'Avoid unrealistic cloth physics, sudden design changes, and loss of detail.',
   ].join('\n')
 }
 
@@ -446,17 +456,15 @@ function App() {
     return () => globalThis.clearTimeout(timeoutId)
   }, [copyState])
 
-  const shotPlan = useMemo(() => getShotPlan(job.garmentType), [job.garmentType])
-  const coverage = useMemo(() => getCoverageSummary(photos, job.garmentType), [photos, job.garmentType])
+  const shotPlan = useMemo(() => getShotPlan(job), [job])
+  const coverage = useMemo(() => getCoverageSummary(photos, job), [photos, job])
   const requiredMissing = coverage.filter((item) => item.required && !item.done)
   const primaryPhoto = photos.find((photo) => photo.id === primaryPhotoId) || photos.find((photo) => photo.shotType !== 'unassigned') || photos[0] || null
-  const qualitySummary = useMemo(() => {
-    return {
-      good: photos.filter((photo) => photo.quality.status === 'good').length,
-      review: photos.filter((photo) => photo.quality.status === 'review').length,
-      bad: photos.filter((photo) => photo.quality.status === 'bad').length,
-    }
-  }, [photos])
+  const qualitySummary = useMemo(() => ({
+    good: photos.filter((photo) => photo.quality.status === 'good').length,
+    review: photos.filter((photo) => photo.quality.status === 'review').length,
+    bad: photos.filter((photo) => photo.quality.status === 'bad').length,
+  }), [photos])
   const resolvedDetails = useMemo(() => buildResolvedDetails(job, details, coverage), [job, details, coverage])
   const resolvedCreative = useMemo(() => buildResolvedCreative(job, creative), [job, creative])
   const preset = presetOptions.find((item) => item.id === resolvedCreative.presetId) || presetOptions[0]
@@ -484,7 +492,7 @@ function App() {
       googleFlow: buildGoogleFlowPrompt(job, resolvedDetails, resolvedCreative, preset.label, photos, primaryPhotoName),
       video: buildVideoPrompt(job, resolvedDetails, resolvedCreative, preset.label, photos, primaryPhotoName),
     }
-  }, [job, photos, preset.label, primaryPhoto, resolvedCreative, resolvedDetails])
+  }, [job, photos, primaryPhoto, preset.label, resolvedCreative, resolvedDetails])
 
   const canMove = {
     setup: true,
@@ -518,14 +526,14 @@ function App() {
 
     const nextPhotos = await Promise.all(files.map(async (file) => {
       const previewUrl = URL.createObjectURL(file)
-      const suggestedType = suggestShotType(file.name, job.garmentType)
+      const suggestedType = suggestShotType(file.name, job)
       const dimensions = await readImageDimensions(file, previewUrl)
       const quality = evaluatePhotoQuality({
         width: dimensions.width,
         height: dimensions.height,
         shotType: suggestedType,
         fileSizeBytes: file.size,
-      }, job.garmentType)
+      }, job)
 
       return {
         id: createId(),
@@ -545,7 +553,7 @@ function App() {
     setPhotos((prev) => {
       const merged = prev.concat(nextPhotos)
       if (!primaryPhotoId) {
-        const preferredPrimary = merged.find((photo) => photo.shotType === 'saree_full' || photo.shotType === 'main_view') || merged[0]
+        const preferredPrimary = merged.find((photo) => photo.shotType === 'saree_full' || photo.shotType === 'blouse_front' || photo.shotType === 'main_view') || merged[0]
         if (preferredPrimary) setPrimaryPhotoId(preferredPrimary.id)
       }
       return merged
@@ -557,7 +565,7 @@ function App() {
   const updatePhotoShotType = (photoId, shotType) => {
     setPhotos((prev) => prev.map((photo) => {
       if (photo.id !== photoId) return photo
-      const quality = evaluatePhotoQuality({ ...photo, shotType }, job.garmentType)
+      const quality = evaluatePhotoQuality({ ...photo, shotType }, job)
       return {
         ...photo,
         shotType,
@@ -571,7 +579,7 @@ function App() {
     setPhotos((prev) => {
       const next = prev.filter((photo) => photo.id !== photoId)
       if (primaryPhotoId === photoId) {
-        const preferredPrimary = next.find((photo) => photo.shotType === 'saree_full' || photo.shotType === 'main_view') || next[0]
+        const preferredPrimary = next.find((photo) => photo.shotType === 'saree_full' || photo.shotType === 'blouse_front' || photo.shotType === 'main_view') || next[0]
         setPrimaryPhotoId(preferredPrimary ? preferredPrimary.id : '')
       }
       return next
@@ -596,7 +604,7 @@ function App() {
         kind: 'Image',
         title: buildSuggestedJobName(job) + ' image job',
         status: 'Prompt Ready',
-        note: 'Saree references passed the intake gate and Google Flow prompt is ready.',
+        note: getProductModeLabel(job) + ' references passed the intake gate and Google Flow prompt is ready.',
       })
     }
 
@@ -606,7 +614,7 @@ function App() {
         kind: 'Video',
         title: buildSuggestedJobName(job) + ' video job',
         status: 'Prompt Ready',
-        note: 'Video motion prompt is prepared with saree-safe guardrails.',
+        note: 'Video motion prompt is prepared with mode-specific guardrails.',
       })
     }
 
@@ -617,39 +625,36 @@ function App() {
     await copyText(value, (ok) => setCopyState(ok ? key : 'failed'))
   }
 
-  const startQuickFlow = () => goToScreen('upload')
-  const startGuidedFlow = () => goToScreen('setup')
-
   if (screen === 'home') {
     return (
       <div className="landing-shell">
         <section className="landing-card">
           <p className="eyebrow">Miraai Textile AI</p>
-          <h1 className="landing-title">Saree-first intake system with prompt + quality gate</h1>
+          <h1 className="landing-title">Saree and blouse can now run as separate intake flows</h1>
           <p className="landing-copy">
-            This version is now focused on one thing properly: saree upload intake. The system asks for saree body, blouse, pallu, border, and texture references before it marks the prompt ready.
+            You can now run three paths separately: saree plus blouse set, saree only, and blouse only. Each path asks for different uploads and builds a different prompt.
           </p>
 
           <div className="landing-steps">
             <article className="landing-step">
-              <strong>1. Upload By Shot Type</strong>
-              <span>Saree body, pallu, border, blouse, and fabric shots are tracked separately.</span>
+              <strong>1. Choose Mode</strong>
+              <span>Select saree set, saree only, or blouse only before intake starts.</span>
             </article>
             <article className="landing-step">
-              <strong>2. Quality Check</strong>
-              <span>The intake screen shows missing references, weak images, and manual review items.</span>
+              <strong>2. Separate Rules</strong>
+              <span>Blouse does not ask for pallu or border; saree only does not ask for blouse shots.</span>
             </article>
             <article className="landing-step">
               <strong>3. Prompt Ready Only When Clean</strong>
-              <span>Google Flow prompt becomes reliable only after the saree intake coverage is proper.</span>
+              <span>Each mode has its own required shots before the prompt becomes ready.</span>
             </article>
           </div>
 
           <div className="landing-actions">
-            <button type="button" className="primary-button landing-start-button" onClick={startQuickFlow}>
-              Start Saree Intake
+            <button type="button" className="primary-button landing-start-button" onClick={() => goToScreen('upload')}>
+              Start Intake
             </button>
-            <button type="button" className="secondary-button landing-start-button" onClick={startGuidedFlow}>
+            <button type="button" className="secondary-button landing-start-button" onClick={() => goToScreen('setup')}>
               Open Full Workflow
             </button>
           </div>
@@ -666,7 +671,7 @@ function App() {
           <h1 className="wizard-title">{stepMeta[screen].label}</h1>
           <p className="wizard-copy">
             {screen === 'upload'
-              ? 'This intake screen is saree-first. It separates saree body, blouse, pallu, border, and texture so the prompt does not guess blindly.'
+              ? 'This intake screen follows the selected saree mode so the prompt does not guess blindly.'
               : 'Finish the intake properly before trusting the prompt output.'}
           </p>
         </div>
@@ -675,16 +680,8 @@ function App() {
           <button type="button" className="secondary-button" onClick={() => goToScreen('home')}>
             Home
           </button>
-          {previousStep ? (
-            <button type="button" className="secondary-button" onClick={() => goToScreen(previousStep)}>
-              Back
-            </button>
-          ) : null}
-          {nextStep ? (
-            <button type="button" className="primary-button" disabled={!canMove[nextStep]} onClick={() => goToScreen(nextStep)}>
-              Next
-            </button>
-          ) : null}
+          {previousStep ? <button type="button" className="secondary-button" onClick={() => goToScreen(previousStep)}>Back</button> : null}
+          {nextStep ? <button type="button" className="primary-button" disabled={!canMove[nextStep]} onClick={() => goToScreen(nextStep)}>Next</button> : null}
         </div>
       </header>
 
@@ -709,7 +706,7 @@ function App() {
             <div className="page-head">
               <p className="eyebrow">{stepMeta.setup.eyebrow}</p>
               <h2>Set up the work</h2>
-              <p>Right now the detailed intake logic is optimized for saree. Once this is stable, the same system can be expanded to lehenga, kurti, and more.</p>
+              <p>Saree family now has three separate paths. This keeps blouse-only work from being blocked by saree uploads, and saree-only work from asking for blouse images.</p>
             </div>
 
             <div className="form-grid">
@@ -739,6 +736,15 @@ function App() {
                 </select>
               </label>
 
+              {job.garmentType === 'Saree' ? (
+                <label className="field">
+                  <span>Mode</span>
+                  <select value={job.productMode} onChange={(event) => onJobFieldChange('productMode', event.target.value)}>
+                    {sareeModeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+              ) : null}
+
               <label className="field">
                 <span>Target Audience</span>
                 <select value={job.audience} onChange={(event) => onJobFieldChange('audience', event.target.value)}>
@@ -753,7 +759,7 @@ function App() {
             </div>
 
             <PageFooter
-              helper={job.garmentType === 'Saree' ? 'Saree mode is ready. Continue to intake.' : 'Detailed auto-intake is saree-first for now. Other garments still use the generic path.'}
+              helper={job.garmentType === 'Saree' ? getProductModeLabel(job) + ' is ready. Continue to intake.' : 'Detailed auto-intake is saree-first for now. Other garments still use the generic path.'}
               primaryLabel="Continue to Photo Intake"
               primaryDisabled={!completion.setup}
               onPrimary={() => goToScreen('upload')}
@@ -765,10 +771,11 @@ function App() {
           <section className="page-card">
             <div className="page-head">
               <p className="eyebrow">{stepMeta.upload.eyebrow}</p>
-              <h2>{job.garmentType === 'Saree' ? 'Saree image intake and validation' : 'Reference image intake'}</h2>
-              <p>{job.garmentType === 'Saree'
-                ? 'The goal here is to stop guessing. Upload saree body, blouse, pallu, border, and fabric references separately so output accuracy can improve.'
-                : 'Upload main product and detail views. Saree has the most detailed intake right now.'}
+              <h2>{job.garmentType === 'Saree' ? getProductModeLabel(job) + ' intake and validation' : 'Reference image intake'}</h2>
+              <p>
+                {job.garmentType === 'Saree'
+                  ? 'The goal here is to stop guessing. This mode only asks for the images needed for ' + getProductModeLabel(job).toLowerCase() + '.'
+                  : 'Upload main product and detail views. Saree has the most detailed intake right now.'}
               </p>
             </div>
 
@@ -792,7 +799,7 @@ function App() {
             <label className="upload-box">
               <input type="file" accept="image/*" multiple onChange={onPhotoUpload} />
               <strong>Add cloth photos</strong>
-              <span>Upload all references here. Then confirm whether each image is saree body, blouse, pallu, border, or fabric close-up.</span>
+              <span>Upload all references here. Then confirm the image type for each shot.</span>
             </label>
 
             <div className="detection-grid">
@@ -844,7 +851,7 @@ function App() {
               )) : (
                 <div className="empty-box">
                   <strong>No photos uploaded yet</strong>
-                  <span>Start with a full saree image, then add blouse, pallu, border, and fabric details.</span>
+                  <span>Upload the required images for the selected mode first.</span>
                 </div>
               )}
             </div>
@@ -854,7 +861,7 @@ function App() {
                 <div className="quick-lane-head">
                   <div>
                     <p className="eyebrow">Prompt Readiness</p>
-                    <h3>Saree understanding, suggestions, and Google Flow copy</h3>
+                    <h3>{getProductModeLabel(job)} understanding, suggestions, and Google Flow copy</h3>
                     <p>This section shows what the system currently knows, what is missing, and whether prompt generation should be trusted.</p>
                   </div>
                   <div className="quick-lane-actions">
@@ -872,7 +879,7 @@ function App() {
                     <div className="mockup-preview">
                       {primaryPhoto ? <img src={primaryPhoto.previewUrl} alt={primaryPhoto.name} /> : null}
                       <div className="mockup-overlay">
-                        <span className="mockup-chip">{job.garmentType}</span>
+                        <span className="mockup-chip">{getProductModeLabel(job)}</span>
                         <span className="mockup-chip">{preset.label}</span>
                         <span className="mockup-chip">{promptReady ? 'Prompt Ready' : 'Needs More Intake'}</span>
                       </div>
@@ -880,10 +887,10 @@ function App() {
                     <div className="mockup-copy">
                       <strong>System reading</strong>
                       <div className="mockup-points">
-                        <span>Saree body: {coverage.find((item) => item.id === 'saree_full')?.done ? 'Detected' : 'Missing'}</span>
-                        <span>Blouse refs: {String((coverage.find((item) => item.id === 'blouse_front')?.count || 0) + (coverage.find((item) => item.id === 'blouse_back')?.count || 0))}</span>
-                        <span>Pallu refs: {String(coverage.find((item) => item.id === 'pallu_detail')?.count || 0)}</span>
-                        <span>Border refs: {String(coverage.find((item) => item.id === 'border_detail')?.count || 0)}</span>
+                        <span>Main body: {coverage.find((item) => item.id === 'saree_full' || item.id === 'blouse_front' || item.id === 'main_view')?.done ? 'Detected' : 'Missing'}</span>
+                        <span>Blouse refs: {(coverage.find((item) => item.id === 'blouse_front')?.count || 0) + (coverage.find((item) => item.id === 'blouse_back')?.count || 0)}</span>
+                        <span>Pallu refs: {coverage.find((item) => item.id === 'pallu_detail')?.count || 0}</span>
+                        <span>Border refs: {coverage.find((item) => item.id === 'border_detail')?.count || 0}</span>
                       </div>
                     </div>
                   </article>
@@ -892,7 +899,7 @@ function App() {
                     <div className="guide-block">
                       <strong>Missing upload suggestions</strong>
                       <ul className="guide-list">
-                        {requiredMissing.length ? requiredMissing.map((item) => <li key={item.id}>Upload {item.label.toLowerCase()} image: {item.help}</li>) : <li>Required saree slots are covered.</li>}
+                        {requiredMissing.length ? requiredMissing.map((item) => <li key={item.id}>Upload {item.label.toLowerCase()} image: {item.help}</li>) : <li>Required shots for this mode are covered.</li>}
                       </ul>
                     </div>
                     <div className="guide-block">
@@ -915,7 +922,7 @@ function App() {
                   <PromptCard
                     label="Detailed Image Prompt"
                     body={prompts.image}
-                    note="This is the full prompt with saree coverage context."
+                    note="This is the full prompt with mode-aware reference coverage context."
                     actionLabel={copyState === 'image-prompt' ? 'Copied' : 'Copy'}
                     onAction={() => onCopyPrompt('image-prompt', prompts.image)}
                   />
@@ -924,7 +931,7 @@ function App() {
             ) : null}
 
             <PageFooter
-              helper={promptReady ? 'Required saree references are in place. You can continue.' : 'Prompt is not fully reliable yet. Fill missing saree slots and replace bad images.'}
+              helper={promptReady ? 'Required shots for this mode are in place. You can continue.' : 'Prompt is not fully reliable yet. Fill missing required shots and replace bad images.'}
               primaryLabel="Continue to Product Details"
               primaryDisabled={!completion.upload}
               onPrimary={() => goToScreen('details')}
@@ -937,7 +944,7 @@ function App() {
             <div className="page-head">
               <p className="eyebrow">{stepMeta.details.eyebrow}</p>
               <h2>Fill product details</h2>
-              <p>These fields are now saree-aware. If blouse or pallu references are missing, the suggestions will stay conservative until you update them.</p>
+              <p>These fields now follow the selected mode. Saree only ignores blouse styling, and blouse only ignores saree drape logic.</p>
             </div>
 
             <div className="form-grid">
@@ -993,7 +1000,7 @@ function App() {
             <div className="page-head">
               <p className="eyebrow">{stepMeta.creative.eyebrow}</p>
               <h2>Choose output style</h2>
-              <p>This layer controls model pose and scene, but it should never change the saree truth collected in the intake step.</p>
+              <p>This layer controls model pose and scene, but it should never change the product truth collected in the intake step.</p>
             </div>
 
             <div className="preset-grid">
@@ -1061,14 +1068,14 @@ function App() {
             <div className="page-head">
               <p className="eyebrow">{stepMeta.review.eyebrow}</p>
               <h2>Review and start work</h2>
-              <p>The final prompt should only be trusted when the intake gate is clean. Missing saree slots or bad images should stop output from being treated as final.</p>
+              <p>The final prompt should only be trusted when the intake gate is clean. Missing required shots or bad images should stop output from being treated as final.</p>
             </div>
 
             <div className="summary-grid">
               <SummaryCard title="Work Setup" rows={[
                 ['Job Name', buildSuggestedJobName(job)],
                 ['Work Type', job.workType],
-                ['Garment', job.garmentType],
+                ['Garment', getProductModeLabel(job)],
                 ['Audience', job.audience],
                 ['Intent', job.outputIntent],
               ]} />
@@ -1085,7 +1092,7 @@ function App() {
                 <div className="mockup-preview">
                   <img src={primaryPhoto.previewUrl} alt={primaryPhoto.name} />
                   <div className="mockup-overlay">
-                    <span className="mockup-chip">{getShotTypeLabel(job.garmentType, primaryPhoto.shotType)}</span>
+                    <span className="mockup-chip">{getShotTypeLabel(job, primaryPhoto.shotType)}</span>
                     <span className="mockup-chip">{resolvedCreative.background}</span>
                     <span className="mockup-chip">{promptReady ? 'Ready' : 'Blocked'}</span>
                   </div>
@@ -1093,7 +1100,7 @@ function App() {
                 <div className="mockup-copy">
                   <strong>Prompt trust summary</strong>
                   <div className="mockup-points">
-                    <span>Reference coverage: {buildReferenceLine(photos, job.garmentType)}</span>
+                    <span>Reference coverage: {buildReferenceLine(photos, job)}</span>
                     <span>Good shots: {qualitySummary.good}</span>
                     <span>Needs review: {qualitySummary.review + qualitySummary.bad}</span>
                     <span>Preset: {preset.label}</span>
@@ -1113,7 +1120,7 @@ function App() {
               <PromptCard
                 label="Detailed Image Prompt"
                 body={prompts.image}
-                note="This contains the full saree coverage context."
+                note="This contains the full mode-aware coverage context."
                 actionLabel={copyState === 'review-image' ? 'Copied' : 'Copy'}
                 onAction={() => onCopyPrompt('review-image', prompts.image)}
               />
@@ -1121,7 +1128,7 @@ function App() {
                 <PromptCard
                   label="Video Prompt"
                   body={prompts.video}
-                  note="Video prompt keeps the same saree truth while adding motion direction."
+                  note="Video prompt keeps the same product truth while adding motion direction."
                   actionLabel={copyState === 'review-video' ? 'Copied' : 'Copy'}
                   onAction={() => onCopyPrompt('review-video', prompts.video)}
                 />
@@ -1140,7 +1147,7 @@ function App() {
             {!promptReady ? (
               <div className="empty-box">
                 <strong>Prompt is blocked</strong>
-                <span>Fill all required saree slots and replace bad images before starting final work.</span>
+                <span>Fill all required shots for this mode and replace bad images before starting final work.</span>
               </div>
             ) : null}
 
