@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import './index.css'
 
 const stepOrder = ['setup', 'upload', 'details', 'creative', 'review']
+const storageKeys = {
+  draft: 'miraai-textile-draft-v1',
+  jobs: 'miraai-textile-jobs-v1',
+  briefs: 'miraai-textile-briefs-v1',
+}
 
 const stepMeta = {
   setup: { label: 'Work Setup', eyebrow: 'Step 1' },
@@ -212,6 +217,58 @@ function withFallback(value, fallback) {
   return String(value || '').trim() || fallback
 }
 
+function readStoredJson(key, fallback) {
+  if (!globalThis.localStorage) return fallback
+
+  try {
+    const raw = globalThis.localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function writeStoredJson(key, value) {
+  if (!globalThis.localStorage) return
+
+  try {
+    globalThis.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Ignore storage failures so the local prototype stays usable.
+  }
+}
+
+function formatSavedAt(value) {
+  try {
+    return new Date(value).toLocaleString('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    })
+  } catch {
+    return value
+  }
+}
+
+function toSlug(value) {
+  return String(value || 'miraai-brief')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'miraai-brief'
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 function getProductModeLabel(job) {
   if (job.garmentType !== 'Saree') return job.garmentType
   return sareeModeOptions.find((item) => item.value === job.productMode)?.label || 'Saree + Blouse Set'
@@ -332,6 +389,85 @@ function buildResolvedCreative(job, creative) {
   }
 }
 
+function buildBriefRecord(job, details, creative, coverage, photos, primaryPhoto, presetLabel, promptReady, prompts) {
+  return {
+    id: createId(),
+    savedAt: new Date().toISOString(),
+    title: buildSuggestedJobName(job),
+    garment: getProductModeLabel(job),
+    workType: job.workType,
+    outputIntent: job.outputIntent,
+    brandName: withFallback(job.brandName, 'Not set'),
+    promptReady,
+    primaryPhoto: primaryPhoto
+      ? {
+          name: primaryPhoto.name,
+          shotType: getShotTypeLabel(job, primaryPhoto.shotType),
+          resolution: primaryPhoto.resolutionLabel,
+        }
+      : null,
+    coverage: coverage.map((item) => ({
+      id: item.id,
+      label: item.label,
+      required: item.required,
+      count: item.count,
+      done: item.done,
+    })),
+    photos: photos.map((photo) => ({
+      name: photo.name,
+      shotType: getShotTypeLabel(job, photo.shotType),
+      quality: photo.quality.label,
+      resolution: photo.resolutionLabel,
+      size: photo.sizeLabel,
+    })),
+    job,
+    details,
+    creative,
+    presetLabel,
+    prompts,
+    note: 'Uploaded images are not stored in the brief. Re-upload the photos when restoring this setup.',
+  }
+}
+
+function formatBriefText(brief) {
+  const coverage = brief.coverage
+    .map((item) => '- ' + item.label + ': ' + (item.done ? String(item.count) + ' added' : item.required ? 'Missing required' : 'Optional not added'))
+    .join('\n')
+  const photos = brief.photos.length
+    ? brief.photos.map((photo) => '- ' + photo.name + ' | ' + photo.shotType + ' | ' + photo.quality + ' | ' + photo.resolution).join('\n')
+    : '- No photos captured in this saved brief.'
+
+  return [
+    'Miraai Textile Prompt Brief',
+    'Saved: ' + formatSavedAt(brief.savedAt),
+    'Title: ' + brief.title,
+    'Garment: ' + brief.garment,
+    'Intent: ' + brief.outputIntent,
+    'Work Type: ' + brief.workType,
+    'Brand / Client: ' + brief.brandName,
+    'Prompt Ready: ' + (brief.promptReady ? 'Yes' : 'No'),
+    'Primary Photo: ' + (brief.primaryPhoto ? brief.primaryPhoto.name + ' (' + brief.primaryPhoto.shotType + ')' : 'Not selected'),
+    '',
+    'Coverage',
+    coverage,
+    '',
+    'Photo Summary',
+    photos,
+    '',
+    'Google Flow Prompt',
+    brief.prompts.googleFlow,
+    '',
+    'Detailed Image Prompt',
+    brief.prompts.image,
+    '',
+    'Video Prompt',
+    brief.prompts.video,
+    '',
+    'Note',
+    brief.note,
+  ].join('\n')
+}
+
 function buildReferenceLine(photos, job) {
   const summary = getCoverageSummary(photos, job)
     .filter((item) => item.done)
@@ -435,13 +571,16 @@ function readImageDimensions(file, previewUrl) {
 }
 
 function App() {
-  const [screen, setScreen] = useState(getHashScreen())
-  const [job, setJob] = useState(initialJob)
-  const [details, setDetails] = useState(initialDetails)
-  const [creative, setCreative] = useState(initialCreative)
+  const storedDraft = readStoredJson(storageKeys.draft, null)
+  const initialScreen = getHashScreen()
+  const [screen, setScreen] = useState(initialScreen === 'home' ? storedDraft?.screen || 'home' : initialScreen)
+  const [job, setJob] = useState(() => ({ ...initialJob, ...(storedDraft?.job || {}) }))
+  const [details, setDetails] = useState(() => ({ ...initialDetails, ...(storedDraft?.details || {}) }))
+  const [creative, setCreative] = useState(() => ({ ...initialCreative, ...(storedDraft?.creative || {}) }))
   const [photos, setPhotos] = useState([])
   const [primaryPhotoId, setPrimaryPhotoId] = useState('')
-  const [jobs, setJobs] = useState([])
+  const [jobs, setJobs] = useState(() => readStoredJson(storageKeys.jobs, []))
+  const [savedBriefs, setSavedBriefs] = useState(() => readStoredJson(storageKeys.briefs, []))
   const [copyState, setCopyState] = useState('')
 
   useEffect(() => {
@@ -455,6 +594,18 @@ function App() {
     const timeoutId = globalThis.setTimeout(() => setCopyState(''), 1600)
     return () => globalThis.clearTimeout(timeoutId)
   }, [copyState])
+
+  useEffect(() => {
+    writeStoredJson(storageKeys.draft, { screen, job, details, creative })
+  }, [creative, details, job, screen])
+
+  useEffect(() => {
+    writeStoredJson(storageKeys.jobs, jobs)
+  }, [jobs])
+
+  useEffect(() => {
+    writeStoredJson(storageKeys.briefs, savedBriefs)
+  }, [savedBriefs])
 
   const shotPlan = useMemo(() => getShotPlan(job), [job])
   const coverage = useMemo(() => getCoverageSummary(photos, job), [photos, job])
@@ -622,6 +773,55 @@ function App() {
     }
 
     setJobs((prev) => nextJobs.concat(prev))
+    saveCurrentBrief({ silent: true })
+  }
+
+  const createCurrentBrief = () => buildBriefRecord(
+    job,
+    resolvedDetails,
+    resolvedCreative,
+    coverage,
+    photos,
+    primaryPhoto,
+    preset.label,
+    promptReady,
+    prompts
+  )
+
+  const saveCurrentBrief = ({ silent = false } = {}) => {
+    if (!promptReady) return null
+    const brief = createCurrentBrief()
+    setSavedBriefs((prev) => [brief, ...prev].slice(0, 12))
+    if (!silent) setCopyState('brief-saved')
+    return brief
+  }
+
+  const downloadBrief = (brief, format, stateKey) => {
+    const baseName = toSlug(brief.title) + '-' + String(brief.savedAt).slice(0, 10)
+    const nextStateKey = stateKey || ('brief-' + format + '-' + brief.id)
+
+    if (format === 'text') {
+      downloadFile(baseName + '.txt', formatBriefText(brief), 'text/plain;charset=utf-8')
+      setCopyState(nextStateKey)
+      return
+    }
+
+    downloadFile(baseName + '.json', JSON.stringify(brief, null, 2), 'application/json;charset=utf-8')
+    setCopyState(nextStateKey)
+  }
+
+  const restoreBrief = (brief) => {
+    setJob({ ...initialJob, ...(brief.job || {}) })
+    setDetails({ ...initialDetails, ...(brief.details || {}) })
+    setCreative({ ...initialCreative, ...(brief.creative || {}) })
+    setPhotos([])
+    setPrimaryPhotoId('')
+    goToScreen('setup')
+    setCopyState('brief-restored')
+  }
+
+  const removeBrief = (briefId) => {
+    setSavedBriefs((prev) => prev.filter((item) => item.id !== briefId))
   }
 
   const onCopyPrompt = async (key, value) => {
@@ -661,6 +861,47 @@ function App() {
               Open Full Workflow
             </button>
           </div>
+
+          <section className="saved-briefs">
+            <div className="saved-briefs-head">
+              <div>
+                <p className="eyebrow">Saved Briefs</p>
+                <h2>Recent prompt packets</h2>
+                <p>Setup, details, and prompts now persist locally. Uploaded photos still need to be added again when you restore a brief.</p>
+              </div>
+            </div>
+
+            <div className="job-list">
+              {savedBriefs.length ? savedBriefs.map((brief) => (
+                <article key={brief.id} className="job-card saved-brief-card">
+                  <div>
+                    <strong>{brief.title}</strong>
+                    <p>{brief.garment} • {brief.outputIntent} • {formatSavedAt(brief.savedAt)}</p>
+                    <p>{brief.promptReady ? 'Prompt-ready brief saved.' : 'Saved before the intake gate was fully ready.'}</p>
+                  </div>
+                  <div className="saved-brief-actions">
+                    <button type="button" className="secondary-button" onClick={() => restoreBrief(brief)}>
+                      {copyState === 'brief-restored' ? 'Loaded' : 'Load Setup'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => downloadBrief(brief, 'json')}>
+                      {copyState === 'brief-json-' + brief.id ? 'Downloaded' : 'JSON'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => downloadBrief(brief, 'text')}>
+                      {copyState === 'brief-text-' + brief.id ? 'Downloaded' : 'Text'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => removeBrief(brief.id)}>
+                      Remove
+                    </button>
+                  </div>
+                </article>
+              )) : (
+                <div className="empty-box">
+                  <strong>No briefs saved yet</strong>
+                  <span>Save a prompt-ready packet from the review step and it will appear here.</span>
+                </div>
+              )}
+            </div>
+          </section>
         </section>
       </div>
     )
@@ -1146,6 +1387,21 @@ function App() {
             <div className="review-actions">
               <button type="button" className="primary-button" disabled={!promptReady} onClick={startOutputJobs}>
                 Start Work Now
+              </button>
+              <button type="button" className="secondary-button" disabled={!promptReady} onClick={() => saveCurrentBrief()}>
+                {copyState === 'brief-saved' ? 'Saved' : 'Save Prompt Brief'}
+              </button>
+              <button type="button" className="secondary-button" disabled={!promptReady} onClick={() => {
+                const brief = createCurrentBrief()
+                downloadBrief(brief, 'json', 'brief-json-temp')
+              }}>
+                {copyState === 'brief-json-temp' ? 'Downloaded' : 'Download JSON'}
+              </button>
+              <button type="button" className="secondary-button" disabled={!promptReady} onClick={() => {
+                const brief = createCurrentBrief()
+                downloadBrief(brief, 'text', 'brief-text-temp')
+              }}>
+                {copyState === 'brief-text-temp' ? 'Downloaded' : 'Download Text'}
               </button>
               <button type="button" className="secondary-button" onClick={() => goToScreen('upload')}>
                 Back To Intake

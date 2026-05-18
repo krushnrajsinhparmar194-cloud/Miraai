@@ -81,6 +81,27 @@ img {
   gap: 12px;
 }
 
+.saved-briefs {
+  display: grid;
+  gap: 16px;
+}
+
+.saved-briefs-head {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-briefs-head h2 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 32px);
+  color: #2b1d18;
+}
+
+.saved-briefs-head p {
+  margin: 0;
+  color: #71645b;
+}
+
 .eyebrow {
   margin: 0;
   text-transform: uppercase;
@@ -672,6 +693,17 @@ textarea:focus {
   align-items: center;
 }
 
+.saved-brief-card {
+  align-items: flex-start;
+}
+
+.saved-brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .status-tag {
   padding: 8px 10px;
   border-radius: 999px;
@@ -747,7 +779,8 @@ textarea:focus {
   .job-card,
   .page-footer,
   .quick-lane-head,
-  .prompt-card-head {
+  .prompt-card-head,
+  .saved-brief-actions {
     flex-direction: column;
     align-items: stretch;
   }
