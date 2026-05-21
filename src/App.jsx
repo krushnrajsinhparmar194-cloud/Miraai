@@ -283,35 +283,105 @@ function getShotPlan(job) {
   return genericShotPlan
 }
 
+function getUploadBuckets(job) {
+  if (job.garmentType === 'Saree') {
+    if (job.productMode === 'saree-set') {
+      return [
+        {
+          id: 'saree',
+          label: 'Add Saree Photos',
+          title: 'Saree References',
+          help: 'Upload saree body, pallu, border, fall, and fabric detail shots here.',
+        },
+        {
+          id: 'blouse',
+          label: 'Add Blouse Photos',
+          title: 'Blouse References',
+          help: 'Upload blouse front, back, sleeve, and blouse detail shots here.',
+        },
+      ]
+    }
+
+    if (job.productMode === 'saree-only') {
+      return [{
+        id: 'saree',
+        label: 'Add Saree Photos',
+        title: 'Saree References',
+        help: 'Upload saree body, pallu, border, fall, and fabric detail shots here.',
+      }]
+    }
+
+    return [{
+      id: 'blouse',
+      label: 'Add Blouse Photos',
+      title: 'Blouse References',
+      help: 'Upload blouse front, back, sleeve, and blouse detail shots here.',
+    }]
+  }
+
+  return [{
+    id: 'general',
+    label: 'Add Reference Photos',
+    title: 'Reference Photos',
+    help: 'Upload main product and detail shots here.',
+  }]
+}
+
+function getUploadBucketLabel(uploadBucket) {
+  if (uploadBucket === 'saree') return 'Saree'
+  if (uploadBucket === 'blouse') return 'Blouse'
+  return 'Reference'
+}
+
+function getBucketShotPlan(job, uploadBucket) {
+  const plan = getShotPlan(job)
+
+  if (job.garmentType !== 'Saree') return plan
+  if (job.productMode === 'saree-only') return sareeOnlyShotPlan
+  if (job.productMode === 'blouse-only') return blouseOnlyShotPlan
+  if (uploadBucket === 'saree') return sareeSetShotPlan.filter((item) => item.id !== 'blouse_front' && item.id !== 'blouse_back')
+  if (uploadBucket === 'blouse') return sareeSetShotPlan.filter((item) => item.id === 'blouse_front' || item.id === 'blouse_back' || item.id === 'fabric_closeup')
+  return plan
+}
+
 function getShotTypeLabel(job, shotType) {
   const shot = getShotPlan(job).find((item) => item.id === shotType)
   return shot ? shot.label : 'Needs Review'
 }
 
-function suggestShotType(name, job) {
+function suggestShotType(name, job, uploadBucket = 'general') {
   const source = String(name || '').toLowerCase()
+  const allowedShotTypes = new Set(getBucketShotPlan(job, uploadBucket).map((item) => item.id))
+  const match = (shotType) => (allowedShotTypes.has(shotType) ? shotType : 'unassigned')
 
   if (job.garmentType === 'Saree') {
     if (job.productMode === 'blouse-only') {
-      if (source.includes('back') || source.includes('sleeve') || source.includes('neck')) return 'blouse_back'
-      if (source.includes('blouse') || source.includes('front')) return 'blouse_front'
-      if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return 'fabric_closeup'
+      if (source.includes('back') || source.includes('sleeve') || source.includes('neck')) return match('blouse_back')
+      if (source.includes('blouse') || source.includes('front')) return match('blouse_front')
+      if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return match('fabric_closeup')
       return 'unassigned'
     }
 
-    if (source.includes('blouse') && (source.includes('back') || source.includes('sleeve') || source.includes('neck'))) return 'blouse_back'
-    if (source.includes('blouse')) return 'blouse_front'
-    if (source.includes('pallu') || source.includes('pallav')) return 'pallu_detail'
-    if (source.includes('border') || source.includes('lace') || source.includes('kinari')) return 'border_detail'
-    if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return 'fabric_closeup'
-    if (source.includes('fall') || source.includes('finish') || source.includes('inside')) return 'fall_finish'
-    if (source.includes('full') || source.includes('front') || source.includes('open') || source.includes('saree')) return 'saree_full'
+    if (job.productMode === 'saree-set' && uploadBucket === 'blouse') {
+      if (source.includes('back') || source.includes('sleeve') || source.includes('neck')) return match('blouse_back')
+      if (source.includes('blouse') || source.includes('front')) return match('blouse_front')
+      if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return match('fabric_closeup')
+      return 'unassigned'
+    }
+
+    if (source.includes('blouse') && (source.includes('back') || source.includes('sleeve') || source.includes('neck'))) return match('blouse_back')
+    if (source.includes('blouse')) return match('blouse_front')
+    if (source.includes('pallu') || source.includes('pallav')) return match('pallu_detail')
+    if (source.includes('border') || source.includes('lace') || source.includes('kinari')) return match('border_detail')
+    if (source.includes('fabric') || source.includes('texture') || source.includes('close') || source.includes('zoom')) return match('fabric_closeup')
+    if (source.includes('fall') || source.includes('finish') || source.includes('inside')) return match('fall_finish')
+    if (source.includes('full') || source.includes('front') || source.includes('open') || source.includes('saree')) return match('saree_full')
     return 'unassigned'
   }
 
-  if (source.includes('back') || source.includes('side')) return 'back_view'
-  if (source.includes('detail') || source.includes('close') || source.includes('fabric')) return 'detail_view'
-  if (source.includes('main') || source.includes('front') || source.includes('full')) return 'main_view'
+  if (source.includes('back') || source.includes('side')) return match('back_view')
+  if (source.includes('detail') || source.includes('close') || source.includes('fabric')) return match('detail_view')
+  if (source.includes('main') || source.includes('front') || source.includes('full')) return match('main_view')
   return 'unassigned'
 }
 
@@ -343,6 +413,41 @@ function getCoverageSummary(photos, job) {
     const count = photos.filter((photo) => photo.shotType === item.id).length
     return { ...item, count, done: count > 0 }
   })
+}
+
+function getPromptScopeLabel(job, promptScope = 'all') {
+  if (job.garmentType === 'Saree' && job.productMode === 'saree-set') {
+    if (promptScope === 'saree') return 'Saree'
+    if (promptScope === 'blouse') return 'Blouse'
+  }
+
+  return getProductModeLabel(job)
+}
+
+function getPromptScopePhotos(photos, promptScope = 'all') {
+  if (promptScope === 'saree' || promptScope === 'blouse') {
+    return photos.filter((photo) => (photo.uploadBucket || 'general') === promptScope)
+  }
+
+  return photos
+}
+
+function getPromptScopePlan(job, promptScope = 'all') {
+  if (job.garmentType === 'Saree' && job.productMode === 'saree-set' && (promptScope === 'saree' || promptScope === 'blouse')) {
+    return getBucketShotPlan(job, promptScope)
+  }
+
+  return getShotPlan(job)
+}
+
+function getPromptPrimaryPhoto(photos, promptScope = 'all') {
+  const preferredShotTypes = promptScope === 'blouse'
+    ? ['blouse_front', 'blouse_back', 'fabric_closeup']
+    : promptScope === 'saree'
+      ? ['saree_full', 'pallu_detail', 'border_detail', 'fabric_closeup']
+      : ['saree_full', 'blouse_front', 'main_view', 'detail_view']
+
+  return photos.find((photo) => preferredShotTypes.includes(photo.shotType)) || photos[0] || null
 }
 
 function buildSuggestedJobName(job) {
@@ -415,6 +520,7 @@ function buildBriefRecord(job, details, creative, coverage, photos, primaryPhoto
     })),
     photos: photos.map((photo) => ({
       name: photo.name,
+      bucket: getUploadBucketLabel(photo.uploadBucket),
       shotType: getShotTypeLabel(job, photo.shotType),
       quality: photo.quality.label,
       resolution: photo.resolutionLabel,
@@ -434,8 +540,30 @@ function formatBriefText(brief) {
     .map((item) => '- ' + item.label + ': ' + (item.done ? String(item.count) + ' added' : item.required ? 'Missing required' : 'Optional not added'))
     .join('\n')
   const photos = brief.photos.length
-    ? brief.photos.map((photo) => '- ' + photo.name + ' | ' + photo.shotType + ' | ' + photo.quality + ' | ' + photo.resolution).join('\n')
+    ? brief.photos.map((photo) => '- ' + photo.name + ' | ' + photo.bucket + ' | ' + photo.shotType + ' | ' + photo.quality + ' | ' + photo.resolution).join('\n')
     : '- No photos captured in this saved brief.'
+  const separatePromptSections = brief.prompts.separate
+    ? [
+        '',
+        'Saree Google Flow Prompt',
+        brief.prompts.separate.saree.googleFlow,
+        '',
+        'Saree Detailed Image Prompt',
+        brief.prompts.separate.saree.image,
+        '',
+        'Saree Video Prompt',
+        brief.prompts.separate.saree.video,
+        '',
+        'Blouse Google Flow Prompt',
+        brief.prompts.separate.blouse.googleFlow,
+        '',
+        'Blouse Detailed Image Prompt',
+        brief.prompts.separate.blouse.image,
+        '',
+        'Blouse Video Prompt',
+        brief.prompts.separate.blouse.video,
+      ]
+    : []
 
   return [
     'Miraai Textile Prompt Brief',
@@ -462,27 +590,45 @@ function formatBriefText(brief) {
     '',
     'Video Prompt',
     brief.prompts.video,
+    ...separatePromptSections,
     '',
     'Note',
     brief.note,
   ].join('\n')
 }
 
-function buildReferenceLine(photos, job) {
-  const summary = getCoverageSummary(photos, job)
+function buildReferenceLine(photos, job, promptScope = 'all') {
+  const scopedPhotos = getPromptScopePhotos(photos, promptScope)
+  const plan = getPromptScopePlan(job, promptScope)
+  const summary = plan
+    .map((item) => {
+      const count = scopedPhotos.filter((photo) => photo.shotType === item.id).length
+      return { ...item, count, done: count > 0 }
+    })
     .filter((item) => item.done)
     .map((item) => item.label + ': ' + item.count)
     .join(', ')
   return summary || 'No confirmed reference slots yet.'
 }
 
-function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
-  const targetLabel = getProductModeLabel(job)
-  const truthLine = job.productMode === 'blouse-only'
+function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPhotoName, promptScope = 'all') {
+  const targetLabel = getPromptScopeLabel(job, promptScope)
+  const isScopedSaree = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'saree'
+  const isScopedBlouse = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'blouse'
+  const truthLine = isScopedBlouse
     ? 'Use the uploaded primary blouse photo "' + primaryPhotoName + '" as the truth source. Keep blouse identity exact across neckline, sleeves, back shape, embroidery, and fit. Do not redesign the blouse.'
-    : job.productMode === 'saree-only'
-      ? 'Use the uploaded primary saree photo "' + primaryPhotoName + '" as the truth source. Keep saree body, pallu, border, embroidery, and drape exact. Do not add blouse design work.'
-      : 'Use the uploaded primary cloth photo "' + primaryPhotoName + '" as the truth source. Keep textile identity exact across saree body, blouse, pallu, border, embroidery, and drape. Do not redesign the garment.'
+    : isScopedSaree
+      ? 'Use the uploaded primary saree photo "' + primaryPhotoName + '" as the truth source. Keep saree body, pallu, border, embroidery, print scale, and drape exact. Treat blouse styling as out of scope for this prompt.'
+      : job.productMode === 'blouse-only'
+        ? 'Use the uploaded primary blouse photo "' + primaryPhotoName + '" as the truth source. Keep blouse identity exact across neckline, sleeves, back shape, embroidery, and fit. Do not redesign the blouse.'
+        : job.productMode === 'saree-only'
+          ? 'Use the uploaded primary saree photo "' + primaryPhotoName + '" as the truth source. Keep saree body, pallu, border, embroidery, and drape exact. Do not add blouse design work.'
+          : 'Use the uploaded primary cloth photo "' + primaryPhotoName + '" as the truth source. Keep textile identity exact across saree body, blouse, pallu, border, embroidery, and drape. Do not redesign the garment.'
+  const scopeLine = isScopedBlouse
+    ? 'Prompt Scope: Use only blouse-bucket uploads for this prompt.'
+    : isScopedSaree
+      ? 'Prompt Scope: Use only saree-bucket uploads for this prompt.'
+      : null
 
   return [
     'Goal:',
@@ -491,8 +637,9 @@ function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPh
     'Reference Image Rule:',
     truthLine,
     '',
+    ...(scopeLine ? [scopeLine, ''] : []),
     'Reference Coverage:',
-    buildReferenceLine(photos, job),
+    buildReferenceLine(photos, job, promptScope),
     '',
     'Output Direction:',
     'Intent: ' + job.outputIntent + '. Work type: ' + job.workType + '. Preset: ' + presetLabel + '.',
@@ -504,51 +651,87 @@ function buildImagePrompt(job, details, creative, presetLabel, photos, primaryPh
     'Model direction: ' + creative.modelDirection + '. Pose: ' + creative.pose + '. Background: ' + creative.background + '. Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
     '',
     'Quality Guardrails:',
-    job.productMode === 'blouse-only'
+    isScopedBlouse || job.productMode === 'blouse-only'
       ? 'Keep blouse shape, neckline, sleeves, and embellishment accurate. Avoid anatomy distortion, wrong fit, wrong neckline, and extra decorations.'
-      : 'Keep the textile fully readable. Avoid warped borders, wrong print density, extra decorations, wrong blouse matching, anatomy distortion, and color shifts.',
+      : isScopedSaree
+        ? 'Keep saree body, pallu rhythm, border width, and print scale accurate. Avoid blouse invention, warped borders, print density shifts, and color drift.'
+        : 'Keep the textile fully readable. Avoid warped borders, wrong print density, extra decorations, wrong blouse matching, anatomy distortion, and color shifts.',
     '',
     'Notes:',
     details.notes,
   ].join('\n')
 }
 
-function buildGoogleFlowPrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
-  const targetLabel = getProductModeLabel(job)
-  const identityLine = job.productMode === 'blouse-only'
-    ? 'Preserve exact blouse identity, neckline shape, sleeve detailing, back pattern, embroidery, and fabric texture from the references.'
-    : job.productMode === 'saree-only'
-      ? 'Preserve exact saree identity, saree body, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
-      : 'Preserve exact textile identity, saree body, blouse color match, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
+function buildGoogleFlowPrompt(job, details, creative, presetLabel, photos, primaryPhotoName, promptScope = 'all') {
+  const targetLabel = getPromptScopeLabel(job, promptScope)
+  const isScopedSaree = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'saree'
+  const isScopedBlouse = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'blouse'
+  const identityLine = isScopedBlouse
+    ? 'Preserve exact blouse identity, neckline shape, sleeve detailing, back pattern, embroidery, and fabric texture from the blouse references.'
+    : isScopedSaree
+      ? 'Preserve exact saree identity, saree body, pallu detailing, border width, print scale, embroidery, and fabric drape from the saree references.'
+      : job.productMode === 'blouse-only'
+        ? 'Preserve exact blouse identity, neckline shape, sleeve detailing, back pattern, embroidery, and fabric texture from the references.'
+        : job.productMode === 'saree-only'
+          ? 'Preserve exact saree identity, saree body, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
+          : 'Preserve exact textile identity, saree body, blouse color match, pallu detailing, border width, print scale, embroidery, and fabric drape from the references.'
+  const scopeLine = isScopedBlouse
+    ? 'Use only the blouse upload bucket for this prompt.'
+    : isScopedSaree
+      ? 'Use only the saree upload bucket for this prompt.'
+      : null
 
   return [
     'Use the uploaded cloth image "' + primaryPhotoName + '" as the main reference.',
     'Generate one premium ' + targetLabel.toLowerCase() + ' fashion mockup for ' + job.audience.toLowerCase() + ' wear.',
     identityLine,
-    'Reference coverage: ' + buildReferenceLine(photos, job) + '.',
+    ...(scopeLine ? [scopeLine] : []),
+    'Reference coverage: ' + buildReferenceLine(photos, job, promptScope) + '.',
     'Intent: ' + job.outputIntent + '. Preset style: ' + presetLabel + '.',
     'Fabric: ' + details.fabric + '. Palette: ' + details.palette + '. Pattern: ' + details.pattern + '.',
     'Silhouette: ' + details.silhouette + '. Neckline: ' + details.neckline + '. Sleeves: ' + details.sleeves + '.',
     'Embellishment: ' + details.embellishment + '.',
     'Model direction: ' + creative.modelDirection + '. Pose: ' + creative.pose + '. Background: ' + creative.background + '.',
     'Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
-    job.productMode === 'blouse-only'
+    isScopedBlouse || job.productMode === 'blouse-only'
       ? 'Do not invent new blouse cuts, motifs, lace, sleeve length, or neckline changes. Keep the blouse production-accurate and commercially usable.'
-      : 'Do not invent new motifs, borders, accessories, blouse patterns, or color changes. Keep the garment production-accurate and commercially usable.',
+      : isScopedSaree
+        ? 'Do not invent new pallu motifs, border changes, blouse styling, accessories, or color shifts. Keep the saree production-accurate and commercially usable.'
+        : 'Do not invent new motifs, borders, accessories, blouse patterns, or color changes. Keep the garment production-accurate and commercially usable.',
   ].join('\n')
 }
 
-function buildVideoPrompt(job, details, creative, presetLabel, photos, primaryPhotoName) {
+function buildVideoPrompt(job, details, creative, presetLabel, photos, primaryPhotoName, promptScope = 'all') {
+  const isScopedSaree = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'saree'
+  const isScopedBlouse = job.garmentType === 'Saree' && job.productMode === 'saree-set' && promptScope === 'blouse'
   return [
     'Use the uploaded cloth image "' + primaryPhotoName + '" as the primary garment reference.',
-    'Create a short product video for a ' + getProductModeLabel(job).toLowerCase() + ' for ' + job.audience.toLowerCase() + ' wear.',
+    'Create a short product video for a ' + getPromptScopeLabel(job, promptScope).toLowerCase() + ' for ' + job.audience.toLowerCase() + ' wear.',
     'Intent: ' + job.outputIntent + '. Preset: ' + presetLabel + '. Keep product truth accurate throughout the motion.',
-    'Reference coverage: ' + buildReferenceLine(photos, job) + '.',
+    ...(isScopedBlouse ? ['Prompt scope: use only blouse-bucket uploads.'] : isScopedSaree ? ['Prompt scope: use only saree-bucket uploads.'] : []),
+    'Reference coverage: ' + buildReferenceLine(photos, job, promptScope) + '.',
     'Retain fabric, palette, pattern, and embellishment exactly: ' + details.fabric + '; ' + details.palette + '; ' + details.pattern + '; ' + details.embellishment + '.',
     'Base pose: ' + creative.pose + '. Motion: ' + creative.videoMotion + '. Background: ' + creative.background + '.',
     'Lighting: ' + creative.lighting + '. Camera: ' + creative.camera + '. Styling: ' + creative.styling + '.',
     'Avoid unrealistic cloth physics, sudden design changes, and loss of detail.',
   ].join('\n')
+}
+
+function buildPromptSet(job, details, creative, presetLabel, photos, promptScope = 'all') {
+  const scopedPhotos = getPromptScopePhotos(photos, promptScope)
+  const primaryPhoto = getPromptPrimaryPhoto(scopedPhotos, promptScope)
+  const fallbackPrimaryName = promptScope === 'blouse'
+    ? 'primary blouse reference image'
+    : promptScope === 'saree'
+      ? 'primary saree reference image'
+      : 'primary reference image'
+  const primaryPhotoName = primaryPhoto ? primaryPhoto.name : fallbackPrimaryName
+
+  return {
+    image: buildImagePrompt(job, details, creative, presetLabel, scopedPhotos, primaryPhotoName, promptScope),
+    googleFlow: buildGoogleFlowPrompt(job, details, creative, presetLabel, scopedPhotos, primaryPhotoName, promptScope),
+    video: buildVideoPrompt(job, details, creative, presetLabel, scopedPhotos, primaryPhotoName, promptScope),
+  }
 }
 
 async function copyText(value, onDone) {
@@ -608,9 +791,14 @@ function App() {
   }, [savedBriefs])
 
   const shotPlan = useMemo(() => getShotPlan(job), [job])
+  const uploadBuckets = useMemo(() => getUploadBuckets(job), [job])
   const coverage = useMemo(() => getCoverageSummary(photos, job), [photos, job])
   const requiredMissing = coverage.filter((item) => item.required && !item.done)
   const primaryPhoto = photos.find((photo) => photo.id === primaryPhotoId) || photos.find((photo) => photo.shotType !== 'unassigned') || photos[0] || null
+  const photosByBucket = useMemo(() => uploadBuckets.map((bucket) => ({
+    ...bucket,
+    photos: photos.filter((photo) => (photo.uploadBucket || 'general') === bucket.id),
+  })), [photos, uploadBuckets])
   const qualitySummary = useMemo(() => ({
     good: photos.filter((photo) => photo.quality.status === 'good').length,
     review: photos.filter((photo) => photo.quality.status === 'review').length,
@@ -640,13 +828,44 @@ function App() {
   const previousStep = currentStepIndex > 0 ? stepOrder[currentStepIndex - 1] : null
 
   const prompts = useMemo(() => {
-    const primaryPhotoName = primaryPhoto ? primaryPhoto.name : 'primary reference image'
+    const combinedPrompts = buildPromptSet(job, resolvedDetails, resolvedCreative, preset.label, photos)
+
+    if (!isSareeSet) return combinedPrompts
+
     return {
-      image: buildImagePrompt(job, resolvedDetails, resolvedCreative, preset.label, photos, primaryPhotoName),
-      googleFlow: buildGoogleFlowPrompt(job, resolvedDetails, resolvedCreative, preset.label, photos, primaryPhotoName),
-      video: buildVideoPrompt(job, resolvedDetails, resolvedCreative, preset.label, photos, primaryPhotoName),
+      ...combinedPrompts,
+      separate: {
+        saree: buildPromptSet(job, resolvedDetails, resolvedCreative, preset.label, photos, 'saree'),
+        blouse: buildPromptSet(job, resolvedDetails, resolvedCreative, preset.label, photos, 'blouse'),
+      },
     }
-  }, [job, photos, primaryPhoto, preset.label, resolvedCreative, resolvedDetails])
+  }, [isSareeSet, job, photos, preset.label, resolvedCreative, resolvedDetails])
+
+  const promptGroups = useMemo(() => {
+    if (!isSareeSet) {
+      return [{
+        id: 'combined',
+        title: getProductModeLabel(job) + ' Prompt Pack',
+        subtitle: 'This prompt uses the full selected reference set.',
+        prompts,
+      }]
+    }
+
+    return [
+      {
+        id: 'saree',
+        title: 'Saree Prompt Pack',
+        subtitle: 'Uses only photos uploaded in the saree bucket.',
+        prompts: prompts.separate.saree,
+      },
+      {
+        id: 'blouse',
+        title: 'Blouse Prompt Pack',
+        subtitle: 'Uses only photos uploaded in the blouse bucket.',
+        prompts: prompts.separate.blouse,
+      },
+    ]
+  }, [isSareeSet, job, prompts])
 
   const canMove = {
     setup: true,
@@ -674,13 +893,13 @@ function App() {
     setCreative((prev) => ({ ...prev, [field]: value }))
   }
 
-  const onPhotoUpload = async (event) => {
+  const onPhotoUpload = async (event, uploadBucket = 'general') => {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
 
     const nextPhotos = await Promise.all(files.map(async (file) => {
       const previewUrl = URL.createObjectURL(file)
-      const suggestedType = suggestShotType(file.name, job)
+      const suggestedType = suggestShotType(file.name, job, uploadBucket)
       const dimensions = await readImageDimensions(file, previewUrl)
       const quality = evaluatePhotoQuality({
         width: dimensions.width,
@@ -698,6 +917,7 @@ function App() {
         width: dimensions.width,
         height: dimensions.height,
         resolutionLabel: dimensions.width && dimensions.height ? dimensions.width + ' × ' + dimensions.height : 'Resolution unavailable',
+        uploadBucket,
         shotType: suggestedType,
         classifierHint: suggestedType === 'unassigned' ? 'Needs manual review' : 'Auto-suggested, please confirm',
         quality,
@@ -1040,11 +1260,15 @@ function App() {
               })}
             </div>
 
-            <label className="upload-box">
-              <input type="file" accept="image/*" multiple onChange={onPhotoUpload} />
-              <strong>Add cloth photos</strong>
-              <span>Upload all references here. Then confirm the image type for each shot.</span>
-            </label>
+            <div className="upload-box-grid">
+              {uploadBuckets.map((bucket) => (
+                <label key={bucket.id} className="upload-box">
+                  <input type="file" accept="image/*" multiple onChange={(event) => onPhotoUpload(event, bucket.id)} />
+                  <strong>{bucket.label}</strong>
+                  <span>{bucket.help}</span>
+                </label>
+              ))}
+            </div>
 
             <div className="detection-grid">
               <MetricCard label="Coverage Ready" value={String(coverage.filter((item) => item.done).length) + '/' + String(shotPlan.length)} helper="Confirmed shot slots filled" />
@@ -1053,52 +1277,75 @@ function App() {
               <MetricCard label="Missing Required" value={String(requiredMissing.length)} helper="Replace these before final output" />
             </div>
 
-            <div className="photo-grid">
-              {photos.length ? photos.map((photo) => (
-                <article key={photo.id} className={joinClasses('photo-card', primaryPhoto && primaryPhoto.id === photo.id && 'photo-card-primary')}>
-                  <img src={photo.previewUrl} alt={photo.name} />
-                  <div className="photo-card-copy">
-                    <strong>{photo.name}</strong>
-                    <span>{photo.sizeLabel} • {photo.resolutionLabel}</span>
-                  </div>
+            {photos.length ? (
+              <div className="photo-bucket-stack">
+                {photosByBucket.map((bucket) => (
+                  <section key={bucket.id} className="photo-bucket-section">
+                    <div className="photo-bucket-head">
+                      <strong>{bucket.title}</strong>
+                      <span>{bucket.photos.length} photo{bucket.photos.length === 1 ? '' : 's'} added</span>
+                    </div>
 
-                  <div className="photo-card-meta">
-                    <span className={joinClasses('quality-badge', 'quality-' + photo.quality.status)}>{photo.quality.label}</span>
-                    <span>{photo.classifierHint}</span>
-                  </div>
+                    {bucket.photos.length ? (
+                      <div className="photo-grid">
+                        {bucket.photos.map((photo) => {
+                          const bucketPlan = getBucketShotPlan(job, photo.uploadBucket || 'general')
+                          return (
+                            <article key={photo.id} className={joinClasses('photo-card', primaryPhoto && primaryPhoto.id === photo.id && 'photo-card-primary')}>
+                              <img src={photo.previewUrl} alt={photo.name} />
+                              <div className="photo-card-copy">
+                                <strong>{photo.name}</strong>
+                                <span>{photo.sizeLabel} • {photo.resolutionLabel}</span>
+                              </div>
 
-                  <label className="field photo-card-select">
-                    <span>Image Type</span>
-                    <select value={photo.shotType} onChange={(event) => updatePhotoShotType(photo.id, event.target.value)}>
-                      <option value="unassigned">Needs Review</option>
-                      {shotPlan.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                    </select>
-                  </label>
+                              <div className="photo-card-meta">
+                                <span className={joinClasses('quality-badge', 'quality-' + photo.quality.status)}>{photo.quality.label}</span>
+                                <span>{getUploadBucketLabel(photo.uploadBucket)} upload • {photo.classifierHint}</span>
+                              </div>
 
-                  {photo.quality.issues.length ? (
-                    <ul className="photo-card-issues">
-                      {photo.quality.issues.map((issue) => <li key={issue}>{issue}</li>)}
-                    </ul>
-                  ) : (
-                    <div className="photo-card-issues photo-card-issues-clean">Shot looks usable for prompt generation.</div>
-                  )}
+                              <label className="field photo-card-select">
+                                <span>Image Type</span>
+                                <select value={photo.shotType} onChange={(event) => updatePhotoShotType(photo.id, event.target.value)}>
+                                  <option value="unassigned">Needs Review</option>
+                                  {bucketPlan.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                                </select>
+                              </label>
 
-                  <div className="photo-card-actions">
-                    <button type="button" className="secondary-button" onClick={() => setPrimaryPhotoId(photo.id)}>
-                      {primaryPhoto && primaryPhoto.id === photo.id ? 'Primary Photo' : 'Use As Primary'}
-                    </button>
-                    <button type="button" className="secondary-button" onClick={() => removePhoto(photo.id)}>
-                      Remove
-                    </button>
-                  </div>
-                </article>
-              )) : (
-                <div className="empty-box">
-                  <strong>No photos uploaded yet</strong>
-                  <span>Upload the required images for the selected mode first.</span>
-                </div>
-              )}
-            </div>
+                              {photo.quality.issues.length ? (
+                                <ul className="photo-card-issues">
+                                  {photo.quality.issues.map((issue) => <li key={issue}>{issue}</li>)}
+                                </ul>
+                              ) : (
+                                <div className="photo-card-issues photo-card-issues-clean">Shot looks usable for prompt generation.</div>
+                              )}
+
+                              <div className="photo-card-actions">
+                                <button type="button" className="secondary-button" onClick={() => setPrimaryPhotoId(photo.id)}>
+                                  {primaryPhoto && primaryPhoto.id === photo.id ? 'Primary Photo' : 'Use As Primary'}
+                                </button>
+                                <button type="button" className="secondary-button" onClick={() => removePhoto(photo.id)}>
+                                  Remove
+                                </button>
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="empty-box">
+                        <strong>No {bucket.title.toLowerCase()} uploaded yet</strong>
+                        <span>{bucket.help}</span>
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-box">
+                <strong>No photos uploaded yet</strong>
+                <span>Upload the required images for the selected mode first.</span>
+              </div>
+            )}
 
             {completion.upload ? (
               <section className="quick-lane">
@@ -1156,21 +1403,19 @@ function App() {
                   </article>
                 </div>
 
-                <div className="prompt-stack">
-                  <PromptCard
-                    label="Google Flow Prompt"
-                    body={prompts.googleFlow}
-                    note="Paste this in Google Flow with the same image set."
-                    actionLabel={copyState === 'google-flow-inline' ? 'Copied' : 'Copy'}
-                    onAction={() => onCopyPrompt('google-flow-inline', prompts.googleFlow)}
-                  />
-                  <PromptCard
-                    label="Detailed Image Prompt"
-                    body={prompts.image}
-                    note="This is the full prompt with mode-aware reference coverage context."
-                    actionLabel={copyState === 'image-prompt' ? 'Copied' : 'Copy'}
-                    onAction={() => onCopyPrompt('image-prompt', prompts.image)}
-                  />
+                <div className="prompt-scope-stack">
+                  {promptGroups.map((group) => (
+                    <PromptSetSection
+                      key={group.id}
+                      title={group.title}
+                      subtitle={group.subtitle}
+                      promptSet={group.prompts}
+                      includeVideo={job.workType === 'video' || job.workType === 'image-video'}
+                      copyState={copyState}
+                      copyPrefix={group.id === 'combined' ? 'upload-main' : 'upload-' + group.id}
+                      onCopyPrompt={onCopyPrompt}
+                    />
+                  ))}
                 </div>
               </section>
             ) : null}
@@ -1330,6 +1575,10 @@ function App() {
               ]} />
               <SummaryCard title="Intake Summary" rows={[
                 ['Photos Added', String(photos.length)],
+                ...(isSareeSet ? [
+                  ['Saree Photos', String(photos.filter((photo) => photo.uploadBucket === 'saree').length)],
+                  ['Blouse Photos', String(photos.filter((photo) => photo.uploadBucket === 'blouse').length)],
+                ] : []),
                 ['Primary Photo', primaryPhoto ? primaryPhoto.name : 'Not selected'],
                 ['Required Missing', String(requiredMissing.length)],
                 ['Prompt Ready', promptReady ? 'Yes' : 'No'],
@@ -1358,30 +1607,19 @@ function App() {
               </article>
             ) : null}
 
-            <div className="prompt-stack">
-              <PromptCard
-                label="Google Flow Prompt"
-                body={prompts.googleFlow}
-                note="Fastest external test path: upload the same references in Google Flow and paste this."
-                actionLabel={copyState === 'review-google' ? 'Copied' : 'Copy'}
-                onAction={() => onCopyPrompt('review-google', prompts.googleFlow)}
-              />
-              <PromptCard
-                label="Detailed Image Prompt"
-                body={prompts.image}
-                note="This contains the full mode-aware coverage context."
-                actionLabel={copyState === 'review-image' ? 'Copied' : 'Copy'}
-                onAction={() => onCopyPrompt('review-image', prompts.image)}
-              />
-              {(job.workType === 'video' || job.workType === 'image-video') ? (
-                <PromptCard
-                  label="Video Prompt"
-                  body={prompts.video}
-                  note="Video prompt keeps the same product truth while adding motion direction."
-                  actionLabel={copyState === 'review-video' ? 'Copied' : 'Copy'}
-                  onAction={() => onCopyPrompt('review-video', prompts.video)}
+            <div className="prompt-scope-stack">
+              {promptGroups.map((group) => (
+                <PromptSetSection
+                  key={group.id}
+                  title={group.title}
+                  subtitle={group.subtitle}
+                  promptSet={group.prompts}
+                  includeVideo={job.workType === 'video' || job.workType === 'image-video'}
+                  copyState={copyState}
+                  copyPrefix={group.id === 'combined' ? 'review-main' : 'review-' + group.id}
+                  onCopyPrompt={onCopyPrompt}
                 />
-              ) : null}
+              ))}
             </div>
 
             <div className="review-actions">
@@ -1474,6 +1712,45 @@ function PromptCard({ label, body, note, actionLabel, onAction }) {
       {note ? <small className="prompt-note">{note}</small> : null}
       <pre className="prompt-body">{body}</pre>
     </article>
+  )
+}
+
+function PromptSetSection({ title, subtitle, promptSet, includeVideo, copyState, copyPrefix, onCopyPrompt }) {
+  return (
+    <section className="prompt-scope-section">
+      <div className="prompt-scope-head">
+        <div>
+          <strong>{title}</strong>
+          {subtitle ? <p>{subtitle}</p> : null}
+        </div>
+      </div>
+
+      <div className="prompt-stack">
+        <PromptCard
+          label="Google Flow Prompt"
+          body={promptSet.googleFlow}
+          note="Use the same photo bucket when testing this prompt externally."
+          actionLabel={copyState === copyPrefix + '-google' ? 'Copied' : 'Copy'}
+          onAction={() => onCopyPrompt(copyPrefix + '-google', promptSet.googleFlow)}
+        />
+        <PromptCard
+          label="Detailed Image Prompt"
+          body={promptSet.image}
+          note="This prompt keeps the same bucket-specific reference context."
+          actionLabel={copyState === copyPrefix + '-image' ? 'Copied' : 'Copy'}
+          onAction={() => onCopyPrompt(copyPrefix + '-image', promptSet.image)}
+        />
+        {includeVideo ? (
+          <PromptCard
+            label="Video Prompt"
+            body={promptSet.video}
+            note="Video motion stays tied to the same bucket-specific garment truth."
+            actionLabel={copyState === copyPrefix + '-video' ? 'Copied' : 'Copy'}
+            onAction={() => onCopyPrompt(copyPrefix + '-video', promptSet.video)}
+          />
+        ) : null}
+      </div>
+    </section>
   )
 }
 

@@ -301,6 +301,12 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(214, 173, 99, 0.16);
 }
 
+.upload-box-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .upload-box {
   position: relative;
   min-height: 180px;
@@ -346,6 +352,55 @@ textarea:focus {
 
 .photo-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.photo-bucket-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.prompt-scope-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.prompt-scope-section {
+  display: grid;
+  gap: 14px;
+}
+
+.prompt-scope-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.prompt-scope-head strong {
+  color: #2d1d18;
+}
+
+.prompt-scope-head p {
+  margin: 6px 0 0;
+  color: #6c5c50;
+}
+
+.photo-bucket-section {
+  display: grid;
+  gap: 14px;
+}
+
+.photo-bucket-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #6e5e53;
+}
+
+.photo-bucket-head strong {
+  color: #2d1e18;
 }
 
 .upload-blueprint {
@@ -766,6 +821,7 @@ textarea:focus {
   .landing-steps,
   .photo-grid,
   .upload-blueprint,
+  .upload-box-grid,
   .detection-grid,
   .preset-grid,
   .summary-grid,
