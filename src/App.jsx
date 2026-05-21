@@ -542,25 +542,46 @@ function formatBriefText(brief) {
   const photos = brief.photos.length
     ? brief.photos.map((photo) => '- ' + photo.name + ' | ' + photo.bucket + ' | ' + photo.shotType + ' | ' + photo.quality + ' | ' + photo.resolution).join('\n')
     : '- No photos captured in this saved brief.'
+  const combinedPromptSections = brief.prompts.separate
+    ? [
+        'Combined Final Google Flow Prompt',
+        brief.prompts.googleFlow,
+        '',
+        'Combined Final Detailed Image Prompt',
+        brief.prompts.image,
+        '',
+        'Combined Final Video Prompt',
+        brief.prompts.video,
+      ]
+    : [
+        'Google Flow Prompt',
+        brief.prompts.googleFlow,
+        '',
+        'Detailed Image Prompt',
+        brief.prompts.image,
+        '',
+        'Video Prompt',
+        brief.prompts.video,
+      ]
   const separatePromptSections = brief.prompts.separate
     ? [
         '',
-        'Saree Google Flow Prompt',
+        'Master Saree Google Flow Prompt',
         brief.prompts.separate.saree.googleFlow,
         '',
-        'Saree Detailed Image Prompt',
+        'Master Saree Detailed Image Prompt',
         brief.prompts.separate.saree.image,
         '',
-        'Saree Video Prompt',
+        'Master Saree Video Prompt',
         brief.prompts.separate.saree.video,
         '',
-        'Blouse Google Flow Prompt',
+        'Master Blouse Google Flow Prompt',
         brief.prompts.separate.blouse.googleFlow,
         '',
-        'Blouse Detailed Image Prompt',
+        'Master Blouse Detailed Image Prompt',
         brief.prompts.separate.blouse.image,
         '',
-        'Blouse Video Prompt',
+        'Master Blouse Video Prompt',
         brief.prompts.separate.blouse.video,
       ]
     : []
@@ -582,14 +603,7 @@ function formatBriefText(brief) {
     'Photo Summary',
     photos,
     '',
-    'Google Flow Prompt',
-    brief.prompts.googleFlow,
-    '',
-    'Detailed Image Prompt',
-    brief.prompts.image,
-    '',
-    'Video Prompt',
-    brief.prompts.video,
+    ...combinedPromptSections,
     ...separatePromptSections,
     '',
     'Note',
@@ -845,8 +859,8 @@ function App() {
     if (!isSareeSet) {
       return [{
         id: 'combined',
-        title: getProductModeLabel(job) + ' Prompt Pack',
-        subtitle: 'This prompt uses the full selected reference set.',
+        title: getProductModeLabel(job) + ' Master Prompt',
+        subtitle: 'This single prompt combines all confirmed references for the selected mode.',
         prompts,
       }]
     }
@@ -854,15 +868,21 @@ function App() {
     return [
       {
         id: 'saree',
-        title: 'Saree Prompt Pack',
-        subtitle: 'Uses only photos uploaded in the saree bucket.',
+        title: 'Master Saree Prompt',
+        subtitle: 'Combines all saree-bucket photos into one consolidated saree prompt.',
         prompts: prompts.separate.saree,
       },
       {
         id: 'blouse',
-        title: 'Blouse Prompt Pack',
-        subtitle: 'Uses only photos uploaded in the blouse bucket.',
+        title: 'Master Blouse Prompt',
+        subtitle: 'Combines all blouse-bucket photos into one consolidated blouse prompt.',
         prompts: prompts.separate.blouse,
+      },
+      {
+        id: 'combined',
+        title: 'Combined Final Prompt',
+        subtitle: 'Merges both saree and blouse understanding into one final prompt.',
+        prompts,
       },
     ]
   }, [isSareeSet, job, prompts])
